@@ -10,6 +10,7 @@ import {
 } from "@/domain/health";
 import type { IncursionEvent, Outage, Signal } from "@/domain/types";
 import type { createRepositories } from "@/db/repositories";
+import type { StreamEventDraft } from "@/stream/events";
 
 type Repositories = ReturnType<typeof createRepositories>;
 
@@ -100,9 +101,14 @@ function applyHealthEffects(
   at: string,
   effects: HealthEffects,
   openOutage: Outage | null,
-): { openOutage: Outage | null; touchedOutageId: string | null } {
+): {
+  openOutage: Outage | null;
+  touchedOutageId: string | null;
+  outageEvents: Outage[];
+} {
   let currentOpenOutage = openOutage;
   let touchedOutageId: string | null = null;
+  const outageEvents: Outage[] = [];
 
   if (effects.openOutage) {
     currentOpenOutage = repos.outages.insert({
@@ -113,15 +119,19 @@ function applyHealthEffects(
       opsAlerted: effects.fireBlindspotAlert,
     });
     touchedOutageId = currentOpenOutage.id;
+    outageEvents.push(currentOpenOutage);
   }
 
   if (effects.closeOutage && currentOpenOutage !== null) {
     const closed = repos.outages.close(currentOpenOutage.id, at);
     touchedOutageId = closed?.id ?? currentOpenOutage.id;
+    if (closed !== null) {
+      outageEvents.push(closed);
+    }
     currentOpenOutage = null;
   }
 
-  return { openOutage: currentOpenOutage, touchedOutageId };
+  return { openOutage: currentOpenOutage, touchedOutageId, outageEvents };
 }
 
 export interface HeartbeatIngestOutcome {
@@ -130,6 +140,7 @@ export interface HeartbeatIngestOutcome {
   status: HealthState["status"];
   effects: HealthEffects;
   outageId: string | null;
+  streamEvents: StreamEventDraft[];
 }
 
 export function ingestHeartbeat(
@@ -174,7 +185,7 @@ export function ingestHeartbeat(
   );
 
   const acceptedHeartbeat = applied.state.lastHeartbeatAt === payload.at;
-  repos.nodes.upsert({
+  const updatedNode = repos.nodes.upsert({
     ...node,
     status: applied.state.status,
     batteryPct: applied.state.batteryPct,
@@ -182,12 +193,33 @@ export function ingestHeartbeat(
     lastHeartbeatAt: applied.state.lastHeartbeatAt,
   });
 
+  const effects = mergeEffects(sweep.effects, applied.effects);
+  const streamEvents: StreamEventDraft[] = [];
+  if (effects.changed) {
+    streamEvents.push({
+      type: "node-status",
+      at: payload.at,
+      payload: {
+        nodeId: updatedNode.id,
+        status: updatedNode.status,
+        batteryPct: updatedNode.batteryPct,
+        linkQualityPct: updatedNode.linkQualityPct,
+        lastHeartbeatAt: updatedNode.lastHeartbeatAt,
+      },
+    });
+  }
+
+  for (const outage of [...sweepEffects.outageEvents, ...heartbeatEffects.outageEvents]) {
+    streamEvents.push({ type: "outage", at: payload.at, payload: outage });
+  }
+
   return {
     heartbeatId: heartbeat.id,
     nodeId: node.id,
     status: applied.state.status,
-    effects: mergeEffects(sweep.effects, applied.effects),
+    effects,
     outageId: heartbeatEffects.touchedOutageId ?? sweepEffects.touchedOutageId,
+    streamEvents,
   };
 }
 
@@ -220,6 +252,7 @@ export interface DetectionIngestOutcome {
   signalId: string;
   eventId: string;
   eventState: IncursionEvent["state"];
+  streamEvents: StreamEventDraft[];
 }
 
 export function ingestDetection(
@@ -249,11 +282,13 @@ export function ingestDetection(
     signal,
     repos.settings.get(),
   );
+  const eventDrafts: StreamEventDraft[] = [];
 
   if (outcome.expireEventId !== null) {
     const staleEvent = repos.events.findById(outcome.expireEventId);
     if (staleEvent !== null) {
-      repos.events.update({ ...staleEvent, state: "expired" });
+      const expired = repos.events.update({ ...staleEvent, state: "expired" });
+      eventDrafts.push({ type: "event", at: signal.at, payload: expired });
     }
   }
 
@@ -272,11 +307,19 @@ export function ingestDetection(
       firstDeliveryAt: null,
     };
     repos.events.insert(event);
-    repos.signals.attachToEvent(signal.id, event.id);
+    const attachedSignal = repos.signals.attachToEvent(signal.id, event.id) ?? {
+      ...signal,
+      eventId: event.id,
+    };
+    eventDrafts.push({ type: "event", at: signal.at, payload: event });
     return {
       signalId: signal.id,
       eventId: event.id,
       eventState: event.state,
+      streamEvents: [
+        { type: "signal", at: signal.at, payload: attachedSignal },
+        ...eventDrafts,
+      ],
     };
   }
 
@@ -285,7 +328,10 @@ export function ingestDetection(
     throw new IngestError(500, "event_not_found", "Open event disappeared during ingest.");
   }
 
-  repos.signals.attachToEvent(signal.id, event.id);
+  const attachedSignal = repos.signals.attachToEvent(signal.id, event.id) ?? {
+    ...signal,
+    eventId: event.id,
+  };
 
   if (outcome.decision.kind === "confirm") {
     const confirmed = repos.events.update({
@@ -295,10 +341,15 @@ export function ingestDetection(
       speciesLabel: outcome.decision.speciesLabel,
       confirmSignalId: signal.id,
     });
+    eventDrafts.push({ type: "event", at: signal.at, payload: confirmed });
     return {
       signalId: signal.id,
       eventId: confirmed.id,
       eventState: confirmed.state,
+      streamEvents: [
+        { type: "signal", at: signal.at, payload: attachedSignal },
+        ...eventDrafts,
+      ],
     };
   }
 
@@ -306,5 +357,6 @@ export function ingestDetection(
     signalId: signal.id,
     eventId: event.id,
     eventState: event.state,
+    streamEvents: [{ type: "signal", at: signal.at, payload: attachedSignal }],
   };
 }

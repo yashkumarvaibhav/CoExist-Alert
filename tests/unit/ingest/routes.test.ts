@@ -13,6 +13,8 @@ import { resetRuntimeDatabase } from "@/db/runtime";
 import { events, heartbeats, signals } from "@/db/schema";
 import { DEFAULT_SETTINGS } from "@/domain/types";
 import type { SensorNode } from "@/domain/types";
+import type { FieldStreamEvent } from "@/stream/events";
+import { resetStreamHub, streamHub } from "@/stream/hub";
 
 const T0 = "2026-07-02T04:58:02.000Z";
 
@@ -46,6 +48,14 @@ async function readJson(response: Response) {
   return response.json() as Promise<Record<string, unknown>>;
 }
 
+function collectStreamEvents(): { events: FieldStreamEvent[]; unsubscribe: () => void } {
+  const events: FieldStreamEvent[] = [];
+  const unsubscribe = streamHub.subscribe((event) => {
+    events.push(event);
+  });
+  return { events, unsubscribe };
+}
+
 describe("ingest API routes", () => {
   let tempDir: string;
   let databasePath: string;
@@ -77,10 +87,12 @@ describe("ingest API routes", () => {
     databasePath = path.join(tempDir, "test.sqlite");
     process.env.COEXIST_DB_PATH = databasePath;
     resetRuntimeDatabase();
+    resetStreamHub();
   });
 
   afterEach(() => {
     resetRuntimeDatabase();
+    resetStreamHub();
     delete process.env.COEXIST_DB_PATH;
     rmSync(tempDir, { recursive: true, force: true });
   });
@@ -129,6 +141,7 @@ describe("ingest API routes", () => {
 
   it("persists a heartbeat and records blind-spot recovery effects", async () => {
     setupDatabase();
+    const collected = collectStreamEvents();
 
     const heartbeatAt = plusSeconds(T0, 41);
     const response = await postHeartbeat(jsonRequest("/api/ingest/heartbeat", {
@@ -169,10 +182,25 @@ describe("ingest API routes", () => {
       endedAt: heartbeatAt,
       opsAlerted: true,
     });
+    expect(collected.events.map((event) => event.type)).toEqual([
+      "node-status",
+      "outage",
+      "outage",
+    ]);
+    expect(collected.events[1]).toMatchObject({
+      type: "outage",
+      payload: { endedAt: null },
+    });
+    expect(collected.events[2]).toMatchObject({
+      type: "outage",
+      payload: { endedAt: heartbeatAt },
+    });
+    collected.unsubscribe();
   });
 
   it("degrades a node on a low-battery heartbeat", async () => {
     setupDatabase();
+    const collected = collectStreamEvents();
 
     const response = await postHeartbeat(jsonRequest("/api/ingest/heartbeat", {
       nodeId: "n2",
@@ -187,6 +215,12 @@ describe("ingest API routes", () => {
       status: "degraded",
     });
     expect(inspectDatabase((repos) => repos.nodes.findById("n2")?.status)).toBe("degraded");
+    expect(collected.events).toHaveLength(1);
+    expect(collected.events[0]).toMatchObject({
+      type: "node-status",
+      payload: { nodeId: "n2", status: "degraded" },
+    });
+    collected.unsubscribe();
   });
 
   it("rejects malformed detection bodies without persisting rows", async () => {
@@ -214,6 +248,7 @@ describe("ingest API routes", () => {
 
   it("opens an unconfirmed event for a weak first detection", async () => {
     setupDatabase();
+    const collected = collectStreamEvents();
 
     const response = await postDetection(jsonRequest("/api/ingest/detection", {
       nodeId: "n2",
@@ -247,6 +282,12 @@ describe("ingest API routes", () => {
       source: "camera",
       eventId: body.eventId,
     });
+    expect(collected.events.map((event) => event.type)).toEqual(["signal", "event"]);
+    expect(collected.events[1]).toMatchObject({
+      type: "event",
+      payload: { id: body.eventId, state: "unconfirmed" },
+    });
+    collected.unsubscribe();
   });
 
   it("confirms an open event with a second-source detection", async () => {
@@ -260,6 +301,7 @@ describe("ingest API routes", () => {
       confidence: 0.62,
     }));
     const opened = await readJson(first);
+    const collected = collectStreamEvents();
 
     const secondAt = plusSeconds(T0, 29);
     const second = await postDetection(jsonRequest("/api/ingest/detection", {
@@ -289,6 +331,12 @@ describe("ingest API routes", () => {
       confirmSignalId: confirmed.signalId,
     });
     expect(persisted.signals.map((signal) => signal.source)).toEqual(["camera", "thermal"]);
+    expect(collected.events.map((event) => event.type)).toEqual(["signal", "event"]);
+    expect(collected.events[1]).toMatchObject({
+      type: "event",
+      payload: { id: opened.eventId, state: "confirmed" },
+    });
+    collected.unsubscribe();
   });
 
   it("opens a confirmed event for a high-confidence detection", async () => {
