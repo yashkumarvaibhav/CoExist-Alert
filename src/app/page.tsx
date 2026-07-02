@@ -1,3 +1,4 @@
+import { BuildStamp } from "@/components/build-stamp";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { APP_NAME } from "@/lib/app-info";
 
@@ -29,8 +30,9 @@ export default function Home() {
         </span>
       </main>
 
-      <footer className="border-t border-line px-6 py-4 text-center text-sm text-faint">
-        Team GitBoosters · Code with Cisco Silver Flag CSR Challenge
+      <footer className="flex flex-col items-center gap-1 border-t border-line px-6 py-4 text-center text-sm text-faint">
+        <span>Team GitBoosters · Code with Cisco Silver Flag CSR Challenge</span>
+        <BuildStamp />
       </footer>
     </div>
   );

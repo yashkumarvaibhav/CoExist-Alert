@@ -25,7 +25,7 @@ export default defineConfig({
   webServer: {
     // CI builds beforehand and serves the production bundle; local runs reuse
     // an already-running dev server on 3021 when present.
-    command: process.env.CI ? "npm run start -- --port 3021" : "npm run dev",
+    command: process.env.CI ? "npx next start --port 3021" : "npm run dev",
     url: "http://localhost:3021",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
