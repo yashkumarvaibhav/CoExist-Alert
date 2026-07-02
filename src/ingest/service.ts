@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
-import { processSignal, type PendingEvent } from "@/domain/confirmation";
+import { evaluateExpiry, processSignal, type PendingEvent } from "@/domain/confirmation";
 import {
   applyHeartbeat,
   evaluateHealth,
@@ -221,6 +221,70 @@ export function ingestHeartbeat(
     outageId: heartbeatEffects.touchedOutageId ?? sweepEffects.touchedOutageId,
     streamEvents,
   };
+}
+
+export interface SweepOutcome {
+  statusChanges: Array<{ nodeId: string; status: HealthState["status"] }>;
+  outageIds: string[];
+  expiredEventIds: string[];
+  streamEvents: StreamEventDraft[];
+}
+
+/**
+ * Periodic field-state sweep: re-derive node health from heartbeat silence
+ * (a dark node cannot report its own outage) and expire unconfirmed events
+ * whose confirmation window has passed. Runs on boot and on an interval;
+ * every pass is idempotent.
+ */
+export function sweepFieldState(repos: Repositories, nowIso: string): SweepOutcome {
+  const settings = repos.settings.get();
+  const outcome: SweepOutcome = {
+    statusChanges: [],
+    outageIds: [],
+    expiredEventIds: [],
+    streamEvents: [],
+  };
+
+  for (const node of repos.nodes.list()) {
+    const openOutage = repos.outages.findOpenForNode(node.id);
+    const result = evaluateHealth(healthStateFrom(node, openOutage !== null), nowIso, settings);
+    if (!result.effects.changed) continue;
+
+    const applied = applyHealthEffects(repos, node.id, nowIso, result.effects, openOutage);
+    const updatedNode = repos.nodes.upsert({ ...node, status: result.state.status });
+
+    if (updatedNode.status !== node.status) {
+      outcome.statusChanges.push({ nodeId: node.id, status: updatedNode.status });
+      outcome.streamEvents.push({
+        type: "node-status",
+        at: nowIso,
+        payload: {
+          nodeId: updatedNode.id,
+          status: updatedNode.status,
+          batteryPct: updatedNode.batteryPct,
+          linkQualityPct: updatedNode.linkQualityPct,
+          lastHeartbeatAt: updatedNode.lastHeartbeatAt,
+        },
+      });
+    }
+    if (applied.touchedOutageId !== null && result.effects.openOutage) {
+      outcome.outageIds.push(applied.touchedOutageId);
+    }
+    for (const outage of applied.outageEvents) {
+      outcome.streamEvents.push({ type: "outage", at: nowIso, payload: outage });
+    }
+  }
+
+  for (const event of repos.events.listOpen()) {
+    if (event.state !== "unconfirmed") continue;
+    if (!evaluateExpiry(toPendingEvent(repos, event), nowIso, settings)) continue;
+
+    const expired = repos.events.update({ ...event, state: "expired" });
+    outcome.expiredEventIds.push(expired.id);
+    outcome.streamEvents.push({ type: "event", at: nowIso, payload: expired });
+  }
+
+  return outcome;
 }
 
 function toPendingEvent(repos: Repositories, event: IncursionEvent): PendingEvent {

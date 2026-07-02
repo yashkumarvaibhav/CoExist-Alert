@@ -145,6 +145,15 @@ export function createRepositories(db: AppDatabase) {
         );
       },
 
+      listOpen(): IncursionEvent[] {
+        return db
+          .select()
+          .from(events)
+          .where(inArray(events.state, OPEN_EVENT_STATES))
+          .orderBy(asc(events.openedAt))
+          .all();
+      },
+
       list(): IncursionEvent[] {
         return db.select().from(events).orderBy(asc(events.openedAt)).all();
       },
