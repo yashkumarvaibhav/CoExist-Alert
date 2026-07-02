@@ -6,6 +6,10 @@ export const metadata: Metadata = {
   title: "CoExist Alert — Edge early-warning for human-wildlife conflict",
   description:
     "Detect a large animal approaching the forest edge, confirm it, and warn villagers, forest guards and rail control within seconds — with the network itself monitored so a warning never silently fails.",
+  icons: {
+    icon: "/icon.png",
+    apple: "/apple-icon.png",
+  },
 };
 
 // Applies a manually chosen theme before first paint; system preference

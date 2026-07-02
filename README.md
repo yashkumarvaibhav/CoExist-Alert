@@ -1,5 +1,9 @@
 # CoExist Alert
 
+<p align="center">
+  <img src="public/coexist-logo.png" alt="CoExist Alert logo" width="420" />
+</p>
+
 **Edge early-warning for human-wildlife conflict.**
 Code with Cisco · Silver Flag CSR Challenge · Mission 3 — Human-Animal Coexistence · Team **GitBoosters**
 
