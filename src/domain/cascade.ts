@@ -55,7 +55,11 @@ export function planCascade(
   }
 
   const guards = responders
-    .filter((r) => r.role === "guard" && r.nodeIds.includes(node.id))
+    .filter(
+      (r) =>
+        (r.role === "guard" || r.role === "district_officer") &&
+        r.nodeIds.includes(node.id),
+    )
     .sort((a, b) => a.tier - b.tier || a.id.localeCompare(b.id));
   for (const guard of guards) {
     plan.push({ channel: "guard_webex", targetRef: guard.id, tier: guard.tier });

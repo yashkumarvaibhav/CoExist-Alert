@@ -1,4 +1,5 @@
 import { getRuntimeRepositories } from "@/db/runtime";
+import { rebuildEscalationTimers, resetEscalationRuntime } from "@/escalation/runtime";
 import { sweepFieldState } from "@/ingest/service";
 import { publishStreamEvents } from "@/stream/hub";
 
@@ -54,6 +55,7 @@ export async function startFieldRuntime(): Promise<void> {
   // Boot catch-up: recover heartbeat-timeout state from the DB before the
   // interval takes over — downtime must surface as outages, not silence.
   await runFieldSweep();
+  rebuildEscalationTimers(getRuntimeRepositories());
   const sweepTimer = setInterval(() => {
     void runFieldSweep();
   }, SWEEP_INTERVAL_MS);
@@ -73,5 +75,6 @@ export function resetFieldRuntime(): void {
     clearInterval(state.sweepTimer);
   }
   delete globalStore[BOOT_KEY];
+  resetEscalationRuntime();
   lastSweepError = null;
 }

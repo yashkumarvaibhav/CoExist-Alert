@@ -11,6 +11,7 @@ import {
 } from "@/domain/health";
 import type { IncursionEvent, Outage, Signal } from "@/domain/types";
 import type { createRepositories } from "@/db/repositories";
+import { scheduleEscalationForEvent } from "@/escalation/runtime";
 import type { StreamEventDraft } from "@/stream/events";
 
 type Repositories = ReturnType<typeof createRepositories>;
@@ -407,6 +408,9 @@ export async function ingestDetection(
       event.state === "confirmed"
         ? await dispatchCascadeForEvent(repos, event.id, signal.at)
         : { streamEvents: [] };
+    if (event.state === "confirmed") {
+      scheduleEscalationForEvent(repos, event.id, signal.at);
+    }
     return {
       signalId: signal.id,
       eventId: event.id,
@@ -439,6 +443,7 @@ export async function ingestDetection(
     });
     eventDrafts.push({ type: "event", at: signal.at, payload: confirmed });
     const cascade = await dispatchCascadeForEvent(repos, confirmed.id, signal.at);
+    scheduleEscalationForEvent(repos, confirmed.id, signal.at);
     return {
       signalId: signal.id,
       eventId: confirmed.id,

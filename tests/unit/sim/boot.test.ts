@@ -7,13 +7,19 @@ import { createDatabaseClient } from "@/db/client";
 import { createRepositories } from "@/db/repositories";
 import { resetRuntimeDatabase } from "@/db/runtime";
 import { DEFAULT_SETTINGS } from "@/domain/types";
-import type { SensorNode } from "@/domain/types";
+import type { IncursionEvent, Responder, SensorNode, Signal } from "@/domain/types";
+import { scheduledEscalationDueAt } from "@/escalation/runtime";
 import { SWEEP_INTERVAL_MS, resetFieldRuntime, startFieldRuntime } from "@/sim/boot";
 import { resetSimulator, simulatorHealth } from "@/sim/runtime";
 import type { FieldStreamEvent } from "@/stream/events";
 import { resetStreamHub, streamHub } from "@/stream/hub";
 
 const T0 = "2026-07-02T04:58:02.000Z";
+const BOOT_AT = "2026-07-02T08:00:00.000Z";
+
+function plusSeconds(iso: string, seconds: number): string {
+  return new Date(new Date(iso).getTime() + seconds * 1000).toISOString();
+}
 
 function staleNode(): SensorNode {
   return {
@@ -48,7 +54,7 @@ describe("startFieldRuntime", () => {
 
   beforeEach(() => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-07-02T08:00:00.000Z"));
+    vi.setSystemTime(new Date(BOOT_AT));
     tempDir = mkdtempSync(path.join(tmpdir(), "coexist-boot-"));
     databasePath = path.join(tempDir, "test.sqlite");
     process.env.COEXIST_DB_PATH = databasePath;
@@ -125,6 +131,71 @@ describe("startFieldRuntime", () => {
     expect(outages[0]).toMatchObject({ endedAt: null });
   });
 
+  it("rebuilds escalation timers for confirmed unacknowledged events at boot", async () => {
+    process.env.COEXIST_SIM_AUTOSTART = "0";
+    const signal: Signal = {
+      id: "sig-confirmed",
+      nodeId: "n2",
+      at: plusSeconds(BOOT_AT, -80),
+      source: "camera",
+      classification: "large_animal",
+      confidence: 0.9,
+      snapshotPath: "/demo-snapshots/n2-camera.svg",
+      eventId: null,
+    };
+    const event: IncursionEvent = {
+      id: "evt-confirmed",
+      nodeId: "n2",
+      openedAt: signal.at,
+      state: "confirmed",
+      confirmedAt: signal.at,
+      resolvedAt: null,
+      speciesLabel: "elephant_class",
+      leadSignalId: signal.id,
+      confirmSignalId: null,
+      firstDeliveryAt: null,
+    };
+    const tierTwo: Responder = {
+      id: "guard-rrt-alpha",
+      name: "Range RRT Alpha",
+      role: "guard",
+      tier: 2,
+      webexEmail: "rrt.alpha@example.test",
+      phoneLabel: "Rapid response phone",
+      nodeIds: ["n2"],
+    };
+    const queuedAt = plusSeconds(BOOT_AT, -40);
+    inspect((repos) => {
+      repos.responders.upsert(tierTwo);
+      repos.signals.insert(signal);
+      repos.events.insert(event);
+      repos.signals.attachToEvent(signal.id, event.id);
+      repos.alerts.insert({
+        id: "alt-tier-1",
+        eventId: event.id,
+        outageId: null,
+        tier: 1,
+        channel: "guard_webex",
+        targetRef: "guard-sharma",
+        status: "delivered",
+        queuedAt,
+        sentAt: plusSeconds(queuedAt, 1),
+        deliveredAt: plusSeconds(queuedAt, 2),
+        failedReason: null,
+        isLive: false,
+      });
+    });
+
+    await startFieldRuntime();
+    expect(scheduledEscalationDueAt(event.id)).toBe(plusSeconds(queuedAt, 90));
+
+    await vi.advanceTimersByTimeAsync(49_000);
+    expect(inspect((repos) => repos.alerts.listForEvent(event.id).filter((alert) => alert.tier === 2))).toEqual([]);
+
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(inspect((repos) => repos.alerts.listForEvent(event.id).filter((alert) => alert.tier === 2))).toHaveLength(1);
+  });
+
   it("starts the simulator loop by default and honours the autostart flag", async () => {
     delete process.env.COEXIST_SIM_AUTOSTART;
     await startFieldRuntime();
@@ -139,7 +210,7 @@ describe("startFieldRuntime", () => {
       inspect((repos) => repos.heartbeats.listForNode("n2")).length,
     ).toBeGreaterThan(0);
     expect(inspect((repos) => repos.outages.listForNode("n2"))[0]).toMatchObject({
-      endedAt: "2026-07-02T08:00:00.000Z",
+      endedAt: BOOT_AT,
     });
 
     resetFieldRuntime();
