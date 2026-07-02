@@ -10,9 +10,9 @@ import { createDatabaseClient } from "@/db/client";
 import type { AppDatabase } from "@/db/client";
 import { createRepositories } from "@/db/repositories";
 import { resetRuntimeDatabase } from "@/db/runtime";
-import { events, heartbeats, signals } from "@/db/schema";
+import { alerts, events, heartbeats, signals } from "@/db/schema";
 import { DEFAULT_SETTINGS } from "@/domain/types";
-import type { SensorNode } from "@/domain/types";
+import type { Responder, SensorNode, VillagerZone } from "@/domain/types";
 import type { FieldStreamEvent } from "@/stream/events";
 import { resetStreamHub, streamHub } from "@/stream/hub";
 
@@ -36,6 +36,50 @@ const baseNode: SensorNode = {
   createdAt: "2026-06-02T00:00:00.000Z",
 };
 
+const nearbyZone: VillagerZone = {
+  id: "zone-chalsa-basti",
+  label: "Chalsa Basti",
+  lat: 26.889,
+  lng: 88.878,
+};
+
+const distantZone: VillagerZone = {
+  id: "zone-distant-market",
+  label: "Distant Market",
+  lat: 26.934,
+  lng: 88.964,
+};
+
+const tierOneGuard: Responder = {
+  id: "guard-sharma",
+  name: "Beat Officer R. Sharma",
+  role: "guard",
+  tier: 1,
+  webexEmail: "r.sharma@example.test",
+  phoneLabel: "Guard mobile",
+  nodeIds: ["n2"],
+};
+
+const tierTwoGuard: Responder = {
+  id: "guard-rrt-alpha",
+  name: "Range RRT Alpha",
+  role: "guard",
+  tier: 2,
+  webexEmail: "rrt.alpha@example.test",
+  phoneLabel: "Rapid response phone",
+  nodeIds: ["n2"],
+};
+
+const controlRoom: Responder = {
+  id: "nfr-chalsa-control",
+  name: "NFR Section Control - Chalsa",
+  role: "control_room",
+  tier: 1,
+  webexEmail: null,
+  phoneLabel: "Rail control desk",
+  nodeIds: ["n2"],
+};
+
 function jsonRequest(url: string, body: unknown): Request {
   return new Request(`http://localhost${url}`, {
     method: "POST",
@@ -56,6 +100,10 @@ function collectStreamEvents(): { events: FieldStreamEvent[]; unsubscribe: () =>
   return { events, unsubscribe };
 }
 
+function channelOrder(channel: string): number {
+  return ["siren", "villager_phone", "guard_webex", "control_room", "blindspot_ops"].indexOf(channel);
+}
+
 describe("ingest API routes", () => {
   let tempDir: string;
   let databasePath: string;
@@ -66,6 +114,11 @@ describe("ingest API routes", () => {
       const repos = createRepositories(client.db);
       repos.settings.upsert(DEFAULT_SETTINGS);
       repos.nodes.upsert(baseNode);
+      repos.villagerZones.upsert(nearbyZone);
+      repos.villagerZones.upsert(distantZone);
+      repos.responders.upsert(tierOneGuard);
+      repos.responders.upsert(tierTwoGuard);
+      repos.responders.upsert(controlRoom);
       seed?.(repos);
     } finally {
       client.close();
@@ -115,10 +168,12 @@ describe("ingest API routes", () => {
       inspectDatabase((repos, db) => ({
         heartbeats: db.select({ value: count() }).from(heartbeats).get()?.value,
         node: repos.nodes.findById("n2"),
+        alerts: db.select({ value: count() }).from(alerts).get()?.value,
       })),
     ).toEqual({
       heartbeats: 0,
       node: baseNode,
+      alerts: 0,
     });
   });
 
@@ -166,6 +221,7 @@ describe("ingest API routes", () => {
       node: repos.nodes.findById("n2"),
       heartbeats: repos.heartbeats.listForNode("n2"),
       outages: repos.outages.listForNode("n2"),
+      blindspotAlerts: repos.alerts.listForOutage(repos.outages.listForNode("n2")[0]?.id ?? ""),
     }));
 
     expect(persisted.node).toMatchObject({
@@ -182,10 +238,21 @@ describe("ingest API routes", () => {
       endedAt: heartbeatAt,
       opsAlerted: true,
     });
+    expect(persisted.blindspotAlerts).toHaveLength(1);
+    expect(persisted.blindspotAlerts[0]).toMatchObject({
+      eventId: null,
+      outageId: persisted.outages[0].id,
+      channel: "blindspot_ops",
+      targetRef: "n2",
+      status: "delivered",
+      isLive: false,
+    });
     expect(collected.events.map((event) => event.type)).toEqual([
       "node-status",
       "outage",
       "outage",
+      "alert",
+      "delivery",
     ]);
     expect(collected.events[1]).toMatchObject({
       type: "outage",
@@ -194,6 +261,14 @@ describe("ingest API routes", () => {
     expect(collected.events[2]).toMatchObject({
       type: "outage",
       payload: { endedAt: heartbeatAt },
+    });
+    expect(collected.events[3]).toMatchObject({
+      type: "alert",
+      payload: { channel: "blindspot_ops", status: "queued" },
+    });
+    expect(collected.events[4]).toMatchObject({
+      type: "delivery",
+      payload: { channel: "blindspot_ops", status: "delivered" },
     });
     collected.unsubscribe();
   });
@@ -268,6 +343,7 @@ describe("ingest API routes", () => {
     const persisted = inspectDatabase((repos) => ({
       event: repos.events.findById(body.eventId as string),
       signals: repos.signals.listForEvent(body.eventId as string),
+      alerts: repos.alerts.listForEvent(body.eventId as string),
     }));
     expect(persisted.event).toMatchObject({
       nodeId: "n2",
@@ -282,6 +358,7 @@ describe("ingest API routes", () => {
       source: "camera",
       eventId: body.eventId,
     });
+    expect(persisted.alerts).toEqual([]);
     expect(collected.events.map((event) => event.type)).toEqual(["signal", "event"]);
     expect(collected.events[1]).toMatchObject({
       type: "event",
@@ -290,7 +367,7 @@ describe("ingest API routes", () => {
     collected.unsubscribe();
   });
 
-  it("confirms an open event with a second-source detection", async () => {
+  it("confirms an open event with a second-source detection and dispatches tier-one alerts", async () => {
     setupDatabase();
 
     const first = await postDetection(jsonRequest("/api/ingest/detection", {
@@ -323,15 +400,71 @@ describe("ingest API routes", () => {
     const persisted = inspectDatabase((repos) => ({
       event: repos.events.findById(opened.eventId as string),
       signals: repos.signals.listForEvent(opened.eventId as string),
+      alerts: repos.alerts.listForEvent(opened.eventId as string),
     }));
+    const deliveredAtValues = persisted.alerts
+      .map((alert) => alert.deliveredAt)
+      .filter((value): value is string => value !== null)
+      .sort();
     expect(persisted.event).toMatchObject({
       state: "confirmed",
       confirmedAt: secondAt,
       speciesLabel: "elephant_class",
       confirmSignalId: confirmed.signalId,
+      firstDeliveryAt: deliveredAtValues[0],
     });
     expect(persisted.signals.map((signal) => signal.source)).toEqual(["camera", "thermal"]);
-    expect(collected.events.map((event) => event.type)).toEqual(["signal", "event"]);
+    expect(
+      [...persisted.alerts].sort((a, b) => channelOrder(a.channel) - channelOrder(b.channel)).map((alert) => ({
+        channel: alert.channel,
+        targetRef: alert.targetRef,
+        tier: alert.tier,
+        status: alert.status,
+        isLive: alert.isLive,
+        outageId: alert.outageId,
+      })),
+    ).toEqual([
+      {
+        channel: "siren",
+        targetRef: "n2",
+        tier: 1,
+        status: "delivered",
+        isLive: false,
+        outageId: null,
+      },
+      {
+        channel: "villager_phone",
+        targetRef: "zone-chalsa-basti",
+        tier: 1,
+        status: "delivered",
+        isLive: false,
+        outageId: null,
+      },
+      {
+        channel: "guard_webex",
+        targetRef: "guard-sharma",
+        tier: 1,
+        status: "delivered",
+        isLive: false,
+        outageId: null,
+      },
+      {
+        channel: "control_room",
+        targetRef: "nfr-chalsa-control",
+        tier: 1,
+        status: "delivered",
+        isLive: false,
+        outageId: null,
+      },
+    ]);
+    expect(persisted.alerts.every((alert) => alert.sentAt !== null)).toBe(true);
+    expect(persisted.alerts.every((alert) => alert.deliveredAt !== null)).toBe(true);
+    expect(collected.events.slice(0, 2).map((event) => event.type)).toEqual([
+      "signal",
+      "event",
+    ]);
+    expect(collected.events.filter((event) => event.type === "alert")).toHaveLength(4);
+    expect(collected.events.filter((event) => event.type === "delivery")).toHaveLength(4);
     expect(collected.events[1]).toMatchObject({
       type: "event",
       payload: { id: opened.eventId, state: "confirmed" },
@@ -361,7 +494,9 @@ describe("ingest API routes", () => {
       speciesLabel: "elephant_class",
       leadSignalId: body.signalId,
       confirmSignalId: null,
+      firstDeliveryAt: expect.any(String),
     });
+    expect(inspectDatabase((repos) => repos.alerts.listForEvent(body.eventId as string))).toHaveLength(4);
   });
 
   it("expires stale unconfirmed events before re-processing the new detection", async () => {
@@ -395,6 +530,8 @@ describe("ingest API routes", () => {
       stale: repos.events.findById(stale.eventId as string),
       fresh: repos.events.findById(fresh.eventId as string),
       freshSignals: repos.signals.listForEvent(fresh.eventId as string),
+      staleAlerts: repos.alerts.listForEvent(stale.eventId as string),
+      freshAlerts: repos.alerts.listForEvent(fresh.eventId as string),
     }));
 
     expect(persisted.stale).toMatchObject({ state: "expired" });
@@ -403,5 +540,7 @@ describe("ingest API routes", () => {
       leadSignalId: fresh.signalId,
     });
     expect(persisted.freshSignals).toHaveLength(1);
+    expect(persisted.staleAlerts).toEqual([]);
+    expect(persisted.freshAlerts).toEqual([]);
   });
 });

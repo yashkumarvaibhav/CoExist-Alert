@@ -98,12 +98,19 @@ describe("startFieldRuntime", () => {
     const outages = inspect((repos) => repos.outages.listForNode("n2"));
     expect(outages).toHaveLength(1);
     expect(outages[0]).toMatchObject({ endedAt: null, opsAlerted: true });
-    expect(collected.map((event) => event.type)).toEqual(["node-status", "outage"]);
+    expect(inspect((repos) => repos.alerts.listForOutage(outages[0].id))).toHaveLength(1);
+    expect(collected.map((event) => event.type)).toEqual([
+      "node-status",
+      "outage",
+      "alert",
+      "delivery",
+    ]);
 
     // Idempotent: a second boot call must not double anything.
     startFieldRuntime();
     expect(inspect((repos) => repos.outages.listForNode("n2"))).toHaveLength(1);
-    expect(collected).toHaveLength(2);
+    expect(inspect((repos) => repos.alerts.listForOutage(outages[0].id))).toHaveLength(1);
+    expect(collected).toHaveLength(4);
   });
 
   it("keeps sweeping on the interval after boot", async () => {

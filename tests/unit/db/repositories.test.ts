@@ -130,6 +130,7 @@ describe("database repositories", () => {
       const alert: Alert = {
         id: "alert-1",
         eventId: "evt-1",
+        outageId: null,
         tier: 1,
         channel: "guard_webex",
         targetRef: "guard-1",
@@ -174,6 +175,22 @@ describe("database repositories", () => {
       };
       repos.outages.insert(outage);
       expect(repos.outages.findOpenForNode("n2")).toEqual(outage);
+      const blindspotAlert: Alert = {
+        id: "alert-blindspot",
+        eventId: null,
+        outageId: "out-1",
+        tier: 1,
+        channel: "blindspot_ops",
+        targetRef: "n2",
+        status: "delivered",
+        queuedAt: outage.startedAt,
+        sentAt: "2026-07-02T01:00:01.000Z",
+        deliveredAt: "2026-07-02T01:00:02.000Z",
+        failedReason: null,
+        isLive: false,
+      };
+      repos.alerts.insert(blindspotAlert);
+      expect(repos.alerts.listForOutage("out-1")).toEqual([blindspotAlert]);
       repos.outages.close("out-1", "2026-07-02T01:05:00.000Z");
       expect(repos.outages.findOpenForNode("n2")).toBeNull();
 

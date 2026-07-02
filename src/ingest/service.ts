@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
+import { dispatchBlindspotAlert, dispatchCascadeForEvent } from "@/channels/dispatch";
 import { evaluateExpiry, processSignal, type PendingEvent } from "@/domain/confirmation";
 import {
   applyHeartbeat,
@@ -134,6 +135,16 @@ function applyHealthEffects(
   return { openOutage: currentOpenOutage, touchedOutageId, outageEvents };
 }
 
+function dispatchBlindspotAlerts(
+  repos: Repositories,
+  outageEvents: Outage[],
+  at: string,
+): StreamEventDraft[] {
+  return outageEvents
+    .filter((outage) => outage.endedAt === null)
+    .flatMap((outage) => dispatchBlindspotAlert(repos, outage, at).streamEvents);
+}
+
 export interface HeartbeatIngestOutcome {
   heartbeatId: string;
   nodeId: string;
@@ -212,6 +223,13 @@ export function ingestHeartbeat(
   for (const outage of [...sweepEffects.outageEvents, ...heartbeatEffects.outageEvents]) {
     streamEvents.push({ type: "outage", at: payload.at, payload: outage });
   }
+  streamEvents.push(
+    ...dispatchBlindspotAlerts(
+      repos,
+      [...sweepEffects.outageEvents, ...heartbeatEffects.outageEvents],
+      payload.at,
+    ),
+  );
 
   return {
     heartbeatId: heartbeat.id,
@@ -273,6 +291,9 @@ export function sweepFieldState(repos: Repositories, nowIso: string): SweepOutco
     for (const outage of applied.outageEvents) {
       outcome.streamEvents.push({ type: "outage", at: nowIso, payload: outage });
     }
+    outcome.streamEvents.push(
+      ...dispatchBlindspotAlerts(repos, applied.outageEvents, nowIso),
+    );
   }
 
   for (const event of repos.events.listOpen()) {
@@ -376,6 +397,10 @@ export function ingestDetection(
       eventId: event.id,
     };
     eventDrafts.push({ type: "event", at: signal.at, payload: event });
+    const cascade =
+      event.state === "confirmed"
+        ? dispatchCascadeForEvent(repos, event.id, signal.at)
+        : { streamEvents: [] };
     return {
       signalId: signal.id,
       eventId: event.id,
@@ -383,6 +408,7 @@ export function ingestDetection(
       streamEvents: [
         { type: "signal", at: signal.at, payload: attachedSignal },
         ...eventDrafts,
+        ...cascade.streamEvents,
       ],
     };
   }
@@ -406,6 +432,7 @@ export function ingestDetection(
       confirmSignalId: signal.id,
     });
     eventDrafts.push({ type: "event", at: signal.at, payload: confirmed });
+    const cascade = dispatchCascadeForEvent(repos, confirmed.id, signal.at);
     return {
       signalId: signal.id,
       eventId: confirmed.id,
@@ -413,6 +440,7 @@ export function ingestDetection(
       streamEvents: [
         { type: "signal", at: signal.at, payload: attachedSignal },
         ...eventDrafts,
+        ...cascade.streamEvents,
       ],
     };
   }

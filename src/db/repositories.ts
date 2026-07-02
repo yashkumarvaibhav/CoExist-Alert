@@ -45,6 +45,7 @@ export interface AlertStatusPatch {
   sentAt?: string | null;
   deliveredAt?: string | null;
   failedReason?: string | null;
+  isLive?: boolean;
 }
 
 export function createRepositories(db: AppDatabase) {
@@ -181,6 +182,15 @@ export function createRepositories(db: AppDatabase) {
           .from(alerts)
           .where(eq(alerts.eventId, eventId))
           .orderBy(asc(alerts.tier), asc(alerts.queuedAt), asc(alerts.id))
+          .all();
+      },
+
+      listForOutage(outageId: string): Alert[] {
+        return db
+          .select()
+          .from(alerts)
+          .where(eq(alerts.outageId, outageId))
+          .orderBy(asc(alerts.queuedAt), asc(alerts.id))
           .all();
       },
     },

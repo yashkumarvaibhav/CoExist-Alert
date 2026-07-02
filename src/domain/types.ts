@@ -81,7 +81,8 @@ export interface IncursionEvent {
 /** One row per channel dispatch attempt. */
 export interface Alert {
   id: string;
-  eventId: string;
+  eventId: string | null;
+  outageId: string | null;
   tier: AlertTier;
   channel: AlertChannel;
   /** Responder id / zone label / room id, depending on channel. */

@@ -141,9 +141,20 @@ describe("sweepFieldState", () => {
       endedAt: null,
       opsAlerted: true,
     });
+    expect(repos.alerts.listForOutage(outages[0].id)).toHaveLength(1);
+    expect(repos.alerts.listForOutage(outages[0].id)[0]).toMatchObject({
+      eventId: null,
+      outageId: outages[0].id,
+      channel: "blindspot_ops",
+      targetRef: "n2",
+      status: "delivered",
+      isLive: false,
+    });
     expect(outcome.streamEvents.map((event) => event.type)).toEqual([
       "node-status",
       "outage",
+      "alert",
+      "delivery",
     ]);
 
     // A second sweep is idempotent: still offline, no duplicate outage.
@@ -152,6 +163,7 @@ describe("sweepFieldState", () => {
     expect(again.outageIds).toEqual([]);
     expect(again.streamEvents).toEqual([]);
     expect(repos.outages.listForNode("n2")).toHaveLength(1);
+    expect(repos.alerts.listForOutage(outages[0].id)).toHaveLength(1);
   });
 
   it("never evaluates nodes that have not sent a heartbeat yet", () => {
@@ -217,6 +229,8 @@ describe("sweepFieldState", () => {
     expect(outcome.statusChanges).toEqual([{ nodeId: "n2", status: "offline" }]);
     expect(outcome.expiredEventIds).toEqual(["evt-stale"]);
     expect(outcome.streamEvents.map((event) => event.type).sort()).toEqual([
+      "alert",
+      "delivery",
       "event",
       "node-status",
       "outage",

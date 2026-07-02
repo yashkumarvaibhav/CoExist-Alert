@@ -128,15 +128,27 @@ describe("POST /api/demo/scenario", () => {
       state: "confirmed",
       speciesLabel: "elephant_class",
       confirmedAt: plusSeconds(T0, 4),
+      firstDeliveryAt: "2026-07-02T04:58:07.500Z",
     });
     const signals = inspect((repos) => repos.signals.listForEvent(opened[0].id));
     expect(signals.map((signal) => signal.source)).toEqual(["camera", "thermal"]);
+    const alerts = inspect((repos) => repos.alerts.listForEvent(opened[0].id));
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]).toMatchObject({
+      channel: "siren",
+      targetRef: "n2",
+      status: "delivered",
+      deliveredAt: "2026-07-02T04:58:07.500Z",
+      isLive: false,
+    });
 
     expect(collected.map((event) => event.type)).toEqual([
       "signal",
       "event",
       "signal",
       "event",
+      "alert",
+      "delivery",
     ]);
     expect(collected[3]).toMatchObject({
       type: "event",

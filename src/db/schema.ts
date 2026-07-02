@@ -169,8 +169,8 @@ export const alerts = sqliteTable(
   {
     id: text("id").primaryKey(),
     eventId: text("event_id")
-      .notNull()
       .references(() => events.id),
+    outageId: text("outage_id").references((): AnySQLiteColumn => outages.id),
     tier: integer("tier").$type<AlertTier>().notNull(),
     channel: text("channel").$type<AlertChannel>().notNull(),
     targetRef: text("target_ref").notNull(),
@@ -191,7 +191,12 @@ export const alerts = sqliteTable(
       "alerts_status_check",
       sql`${table.status} in ('queued', 'sent', 'delivered', 'failed', 'acked')`,
     ),
+    check(
+      "alerts_subject_check",
+      sql`(${table.eventId} is not null and ${table.outageId} is null) or (${table.eventId} is null and ${table.outageId} is not null)`,
+    ),
     index("alerts_event_tier_idx").on(table.eventId, table.tier),
+    index("alerts_outage_idx").on(table.outageId),
     index("alerts_status_idx").on(table.status),
   ],
 );

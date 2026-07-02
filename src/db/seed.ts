@@ -250,6 +250,7 @@ function makeConfirmedEvent(dayOffset: number): EventSeed {
     return {
       id: `${eventId}-alert-${target.channel}-${index}`,
       eventId,
+      outageId: null,
       tier: target.tier,
       channel: target.channel,
       targetRef: target.targetRef,
