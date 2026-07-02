@@ -95,6 +95,14 @@ export interface Alert {
   isLive: boolean;
 }
 
+/** A hamlet / settlement that can receive villager phone alerts. */
+export interface VillagerZone {
+  id: string;
+  label: string;
+  lat: number;
+  lng: number;
+}
+
 export interface Responder {
   id: string;
   name: string;
