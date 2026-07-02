@@ -135,14 +135,17 @@ function applyHealthEffects(
   return { openOutage: currentOpenOutage, touchedOutageId, outageEvents };
 }
 
-function dispatchBlindspotAlerts(
+async function dispatchBlindspotAlerts(
   repos: Repositories,
   outageEvents: Outage[],
   at: string,
-): StreamEventDraft[] {
-  return outageEvents
+): Promise<StreamEventDraft[]> {
+  const outcomes = await Promise.all(
+    outageEvents
     .filter((outage) => outage.endedAt === null)
-    .flatMap((outage) => dispatchBlindspotAlert(repos, outage, at).streamEvents);
+      .map((outage) => dispatchBlindspotAlert(repos, outage, at)),
+  );
+  return outcomes.flatMap((outcome) => outcome.streamEvents);
 }
 
 export interface HeartbeatIngestOutcome {
@@ -154,10 +157,10 @@ export interface HeartbeatIngestOutcome {
   streamEvents: StreamEventDraft[];
 }
 
-export function ingestHeartbeat(
+export async function ingestHeartbeat(
   repos: Repositories,
   payload: HeartbeatPayload,
-): HeartbeatIngestOutcome {
+): Promise<HeartbeatIngestOutcome> {
   const node = repos.nodes.findById(payload.nodeId);
   if (node === null) {
     throw new IngestError(404, "node_not_found", "Unknown sensor node.");
@@ -224,11 +227,11 @@ export function ingestHeartbeat(
     streamEvents.push({ type: "outage", at: payload.at, payload: outage });
   }
   streamEvents.push(
-    ...dispatchBlindspotAlerts(
+    ...(await dispatchBlindspotAlerts(
       repos,
       [...sweepEffects.outageEvents, ...heartbeatEffects.outageEvents],
       payload.at,
-    ),
+    )),
   );
 
   return {
@@ -254,7 +257,10 @@ export interface SweepOutcome {
  * whose confirmation window has passed. Runs on boot and on an interval;
  * every pass is idempotent.
  */
-export function sweepFieldState(repos: Repositories, nowIso: string): SweepOutcome {
+export async function sweepFieldState(
+  repos: Repositories,
+  nowIso: string,
+): Promise<SweepOutcome> {
   const settings = repos.settings.get();
   const outcome: SweepOutcome = {
     statusChanges: [],
@@ -292,7 +298,7 @@ export function sweepFieldState(repos: Repositories, nowIso: string): SweepOutco
       outcome.streamEvents.push({ type: "outage", at: nowIso, payload: outage });
     }
     outcome.streamEvents.push(
-      ...dispatchBlindspotAlerts(repos, applied.outageEvents, nowIso),
+      ...(await dispatchBlindspotAlerts(repos, applied.outageEvents, nowIso)),
     );
   }
 
@@ -340,10 +346,10 @@ export interface DetectionIngestOutcome {
   streamEvents: StreamEventDraft[];
 }
 
-export function ingestDetection(
+export async function ingestDetection(
   repos: Repositories,
   payload: DetectionPayload,
-): DetectionIngestOutcome {
+): Promise<DetectionIngestOutcome> {
   const node = repos.nodes.findById(payload.nodeId);
   if (node === null) {
     throw new IngestError(404, "node_not_found", "Unknown sensor node.");
@@ -399,7 +405,7 @@ export function ingestDetection(
     eventDrafts.push({ type: "event", at: signal.at, payload: event });
     const cascade =
       event.state === "confirmed"
-        ? dispatchCascadeForEvent(repos, event.id, signal.at)
+        ? await dispatchCascadeForEvent(repos, event.id, signal.at)
         : { streamEvents: [] };
     return {
       signalId: signal.id,
@@ -432,7 +438,7 @@ export function ingestDetection(
       confirmSignalId: signal.id,
     });
     eventDrafts.push({ type: "event", at: signal.at, payload: confirmed });
-    const cascade = dispatchCascadeForEvent(repos, confirmed.id, signal.at);
+    const cascade = await dispatchCascadeForEvent(repos, confirmed.id, signal.at);
     return {
       signalId: signal.id,
       eventId: confirmed.id,

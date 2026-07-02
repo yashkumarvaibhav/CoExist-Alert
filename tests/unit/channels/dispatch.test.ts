@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { dispatchBlindspotAlert, dispatchCascadeForEvent } from "@/channels/dispatch";
 import { createInMemoryDatabase } from "@/db/client";
@@ -113,10 +113,32 @@ function setup() {
 }
 
 describe("channel dispatch service", () => {
-  it("dispatches tier-one cascade alerts with terminal simulated delivery rows", () => {
+  const originalToken = process.env.WEBEX_BOT_TOKEN;
+  const originalRoom = process.env.WEBEX_ROOM_ID;
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    if (originalToken === undefined) {
+      delete process.env.WEBEX_BOT_TOKEN;
+    } else {
+      process.env.WEBEX_BOT_TOKEN = originalToken;
+    }
+    if (originalRoom === undefined) {
+      delete process.env.WEBEX_ROOM_ID;
+    } else {
+      process.env.WEBEX_ROOM_ID = originalRoom;
+    }
+  });
+
+  it("dispatches tier-one cascade alerts with terminal simulated delivery rows", async () => {
+    delete process.env.WEBEX_BOT_TOKEN;
+    delete process.env.WEBEX_ROOM_ID;
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockRejectedValue(new Error("unexpected Webex call"));
     const { database, repos } = setup();
     try {
-      const outcome = dispatchCascadeForEvent(repos, event.id, CONFIRMED_AT);
+      const outcome = await dispatchCascadeForEvent(repos, event.id, CONFIRMED_AT);
 
       expect(outcome.alerts.map((alert) => `${alert.channel}:${alert.targetRef}`)).toEqual([
         "siren:n2",
@@ -129,6 +151,7 @@ describe("channel dispatch service", () => {
       expect(outcome.alerts.every((alert) => alert.deliveredAt !== null)).toBe(true);
       expect(outcome.alerts.every((alert) => alert.failedReason === null)).toBe(true);
       expect(outcome.alerts.every((alert) => alert.isLive === false)).toBe(true);
+      expect(fetchMock).not.toHaveBeenCalled();
       expect(outcome.streamEvents.map((entry) => entry.type)).toEqual([
         "alert",
         "delivery",
@@ -143,7 +166,7 @@ describe("channel dispatch service", () => {
         firstDeliveryAt: "2026-07-02T04:58:32.500Z",
       });
 
-      const again = dispatchCascadeForEvent(repos, event.id, CONFIRMED_AT);
+      const again = await dispatchCascadeForEvent(repos, event.id, CONFIRMED_AT);
       expect(again.alerts).toEqual([]);
       expect(again.streamEvents).toEqual([]);
       expect(repos.alerts.listForEvent(event.id)).toHaveLength(4);
@@ -152,7 +175,7 @@ describe("channel dispatch service", () => {
     }
   });
 
-  it("dispatches one terminal blindspot ops alert per outage", () => {
+  it("dispatches one terminal blindspot ops alert per outage", async () => {
     const { database, repos } = setup();
     try {
       const outage: Outage = {
@@ -164,7 +187,7 @@ describe("channel dispatch service", () => {
       };
       repos.outages.insert(outage);
 
-      const outcome = dispatchBlindspotAlert(repos, outage, outage.startedAt);
+      const outcome = await dispatchBlindspotAlert(repos, outage, outage.startedAt);
 
       expect(outcome.alerts).toHaveLength(1);
       expect(outcome.alerts[0]).toMatchObject({
@@ -183,12 +206,95 @@ describe("channel dispatch service", () => {
         "delivery",
       ]);
 
-      const again = dispatchBlindspotAlert(repos, outage, outage.startedAt);
+      const again = await dispatchBlindspotAlert(repos, outage, outage.startedAt);
       expect(again.alerts).toEqual([]);
       expect(again.streamEvents).toEqual([]);
       expect(repos.alerts.listForOutage(outage.id)).toHaveLength(1);
     } finally {
       database.close();
+    }
+  });
+
+  it("sends guard Webex alerts live when credentials are present", async () => {
+    vi.setSystemTime(new Date("2026-07-02T04:58:34.250Z"));
+    process.env.WEBEX_BOT_TOKEN = "test-webex-token";
+    process.env.WEBEX_ROOM_ID = "room-123";
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ id: "msg-123" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    const { database, repos } = setup();
+    try {
+      const outcome = await dispatchCascadeForEvent(repos, event.id, CONFIRMED_AT);
+      const guard = outcome.alerts.find((alert) => alert.channel === "guard_webex");
+
+      expect(guard).toMatchObject({
+        status: "delivered",
+        isLive: true,
+        sentAt: "2026-07-02T04:58:34.250Z",
+        deliveredAt: "2026-07-02T04:58:34.250Z",
+        failedReason: null,
+      });
+      expect(fetchMock).toHaveBeenCalledOnce();
+      const [url, init] = fetchMock.mock.calls[0];
+      expect(url).toBe("https://webexapis.com/v1/messages");
+      expect(init?.headers).toMatchObject({
+        Authorization: "Bearer test-webex-token",
+        "content-type": "application/json",
+      });
+      const body = JSON.parse(init?.body as string) as {
+        roomId: string;
+        markdown: string;
+        attachments: Array<{ contentType: string; content: { body: unknown[] } }>;
+      };
+      expect(body.roomId).toBe("room-123");
+      expect(body.markdown).toContain("CoExist Alert");
+      expect(body.markdown).toContain("Rail Crossing KM-47");
+      expect(body.attachments[0]).toMatchObject({
+        contentType: "application/vnd.microsoft.card.adaptive",
+      });
+      expect(JSON.stringify(body.attachments[0].content)).toContain("elephant_class");
+      expect(JSON.stringify(body.attachments[0].content)).toContain("https://www.google.com/maps/search/?api=1&query=26.89,88.89");
+      expect(JSON.stringify(body)).not.toContain("test-webex-token");
+    } finally {
+      database.close();
+      vi.useRealTimers();
+    }
+  });
+
+  it("records a failed terminal Webex delivery when the API rejects the message", async () => {
+    vi.setSystemTime(new Date("2026-07-02T04:58:34.250Z"));
+    process.env.WEBEX_BOT_TOKEN = "test-webex-token";
+    process.env.WEBEX_ROOM_ID = "room-123";
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ message: "Bad credentials" }), {
+        status: 401,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    const { database, repos } = setup();
+    try {
+      const outcome = await dispatchCascadeForEvent(repos, event.id, CONFIRMED_AT);
+      const guard = outcome.alerts.find((alert) => alert.channel === "guard_webex");
+
+      expect(guard).toMatchObject({
+        status: "failed",
+        isLive: true,
+        sentAt: "2026-07-02T04:58:34.250Z",
+        deliveredAt: null,
+        failedReason: "Webex API 401: Bad credentials",
+      });
+      expect(guard?.failedReason).not.toContain("test-webex-token");
+      expect(repos.alerts.listForEvent(event.id).find((alert) => alert.channel === "guard_webex")).toMatchObject({
+        status: "failed",
+        failedReason: "Webex API 401: Bad credentials",
+        isLive: true,
+      });
+    } finally {
+      database.close();
+      vi.useRealTimers();
     }
   });
 });

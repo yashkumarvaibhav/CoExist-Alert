@@ -102,7 +102,21 @@ npm run dev       # http://localhost:3021
 Production build: `npm run build && npm run start` (port 8021).
 Tests: `npm run test` (unit) · `npm run test:e2e` (Playwright).
 
-To enable the live Webex channel, copy `.env.example` to `.env` and provide `WEBEX_BOT_TOKEN` and `WEBEX_ROOM_ID` (a bot created at developer.webex.com, added to a space). Without them the channel runs in clearly-labelled simulated mode.
+### Live Webex channel
+
+The guard Webex channel is live when credentials are present and simulated when they are absent.
+
+1. Create a bot at developer.webex.com and copy its bot access token.
+2. Create or choose a Webex space, add the bot to it, and copy the space ID.
+3. Copy `.env.example` to `.env` and set:
+
+```bash
+WEBEX_BOT_TOKEN=...
+WEBEX_ROOM_ID=...
+COEXIST_PUBLIC_URL=https://coexist.yashkumarvaibhav.me
+```
+
+Successful Webex sends are stored as `LIVE`; missing credentials fall back to a terminal simulated delivery, and Webex API errors are stored as failed deliveries with the API reason surfaced.
 
 ## Honesty rule
 

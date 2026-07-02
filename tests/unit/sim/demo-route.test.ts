@@ -169,7 +169,7 @@ describe("POST /api/demo/scenario", () => {
 
     const collected = collectStreamEvents();
     vi.setSystemTime(new Date(plusSeconds(T0, 46)));
-    runFieldSweep();
+    await runFieldSweep();
 
     expect(inspect((repos) => repos.events.findById(opened[0].id))).toMatchObject({
       state: "expired",

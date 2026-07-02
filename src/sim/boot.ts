@@ -19,9 +19,12 @@ const globalStore = globalThis as unknown as Record<symbol, unknown>;
 let lastSweepError: string | null = null;
 
 /** One safe sweep pass: evaluates health timeouts + event expiry, publishes deltas. */
-export function runFieldSweep(): void {
+export async function runFieldSweep(): Promise<void> {
   try {
-    const outcome = sweepFieldState(getRuntimeRepositories(), new Date().toISOString());
+    const outcome = await sweepFieldState(
+      getRuntimeRepositories(),
+      new Date().toISOString(),
+    );
     if (outcome.streamEvents.length > 0) {
       publishStreamEvents(outcome.streamEvents);
     }
@@ -45,13 +48,15 @@ interface FieldRuntimeState {
   sweepTimer: ReturnType<typeof setInterval>;
 }
 
-export function startFieldRuntime(): void {
+export async function startFieldRuntime(): Promise<void> {
   if (globalStore[BOOT_KEY] !== undefined) return;
 
   // Boot catch-up: recover heartbeat-timeout state from the DB before the
   // interval takes over — downtime must surface as outages, not silence.
-  runFieldSweep();
-  const sweepTimer = setInterval(runFieldSweep, SWEEP_INTERVAL_MS);
+  await runFieldSweep();
+  const sweepTimer = setInterval(() => {
+    void runFieldSweep();
+  }, SWEEP_INTERVAL_MS);
   sweepTimer.unref?.();
   globalStore[BOOT_KEY] = { sweepTimer } satisfies FieldRuntimeState;
 

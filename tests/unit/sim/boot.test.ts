@@ -83,14 +83,14 @@ describe("startFieldRuntime", () => {
     vi.useRealTimers();
   });
 
-  it("recovers heartbeat-timeout state from the DB at boot", () => {
+  it("recovers heartbeat-timeout state from the DB at boot", async () => {
     process.env.COEXIST_SIM_AUTOSTART = "0";
     const collected: FieldStreamEvent[] = [];
     streamHub.subscribe((event) => {
       collected.push(event);
     });
 
-    startFieldRuntime();
+    await startFieldRuntime();
 
     expect(inspect((repos) => repos.nodes.findById("n2"))).toMatchObject({
       status: "offline",
@@ -107,7 +107,7 @@ describe("startFieldRuntime", () => {
     ]);
 
     // Idempotent: a second boot call must not double anything.
-    startFieldRuntime();
+    await startFieldRuntime();
     expect(inspect((repos) => repos.outages.listForNode("n2"))).toHaveLength(1);
     expect(inspect((repos) => repos.alerts.listForOutage(outages[0].id))).toHaveLength(1);
     expect(collected).toHaveLength(4);
@@ -115,7 +115,7 @@ describe("startFieldRuntime", () => {
 
   it("keeps sweeping on the interval after boot", async () => {
     process.env.COEXIST_SIM_AUTOSTART = "0";
-    startFieldRuntime();
+    await startFieldRuntime();
 
     // Recovery via a fresh heartbeat is the ingest path; here assert the
     // interval keeps evaluating: still exactly one open outage, no errors.
@@ -127,7 +127,7 @@ describe("startFieldRuntime", () => {
 
   it("starts the simulator loop by default and honours the autostart flag", async () => {
     delete process.env.COEXIST_SIM_AUTOSTART;
-    startFieldRuntime();
+    await startFieldRuntime();
     expect(simulatorHealth()).toMatchObject({ status: "running" });
 
     // The loop drives real heartbeats through ingest, recovering the node.
@@ -145,7 +145,7 @@ describe("startFieldRuntime", () => {
     resetFieldRuntime();
     resetSimulator();
     process.env.COEXIST_SIM_AUTOSTART = "0";
-    startFieldRuntime();
+    await startFieldRuntime();
     expect(simulatorHealth()).toMatchObject({ status: "idle" });
   });
 });

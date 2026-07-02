@@ -93,10 +93,10 @@ describe("sweepFieldState", () => {
     rmSync(tempDir, { recursive: true, force: true });
   });
 
-  it("does nothing for fresh nodes and absent events", () => {
+  it("does nothing for fresh nodes and absent events", async () => {
     repos.nodes.upsert(makeNode());
 
-    const outcome = sweepFieldState(repos, plusSeconds(T0, 5));
+    const outcome = await sweepFieldState(repos, plusSeconds(T0, 5));
 
     expect(outcome.streamEvents).toEqual([]);
     expect(outcome.statusChanges).toEqual([]);
@@ -105,11 +105,11 @@ describe("sweepFieldState", () => {
     expect(repos.outages.listForNode("n2")).toEqual([]);
   });
 
-  it("degrades an overdue node without opening an outage", () => {
+  it("degrades an overdue node without opening an outage", async () => {
     repos.nodes.upsert(makeNode());
 
     // degradedAfterMissed=2 at 10s interval: overdue from 20s.
-    const outcome = sweepFieldState(repos, plusSeconds(T0, 25));
+    const outcome = await sweepFieldState(repos, plusSeconds(T0, 25));
 
     expect(outcome.statusChanges).toEqual([{ nodeId: "n2", status: "degraded" }]);
     expect(outcome.outageIds).toEqual([]);
@@ -122,12 +122,12 @@ describe("sweepFieldState", () => {
     });
   });
 
-  it("takes a dark node offline, opens one outage and flags the blindspot alert", () => {
+  it("takes a dark node offline, opens one outage and flags the blindspot alert", async () => {
     repos.nodes.upsert(makeNode());
 
     // offlineAfterMissed=4 at 10s interval: offline from 40s.
     const nowIso = plusSeconds(T0, 41);
-    const outcome = sweepFieldState(repos, nowIso);
+    const outcome = await sweepFieldState(repos, nowIso);
 
     expect(outcome.statusChanges).toEqual([{ nodeId: "n2", status: "offline" }]);
     expect(outcome.outageIds).toHaveLength(1);
@@ -158,7 +158,7 @@ describe("sweepFieldState", () => {
     ]);
 
     // A second sweep is idempotent: still offline, no duplicate outage.
-    const again = sweepFieldState(repos, plusSeconds(T0, 60));
+    const again = await sweepFieldState(repos, plusSeconds(T0, 60));
     expect(again.statusChanges).toEqual([]);
     expect(again.outageIds).toEqual([]);
     expect(again.streamEvents).toEqual([]);
@@ -166,28 +166,28 @@ describe("sweepFieldState", () => {
     expect(repos.alerts.listForOutage(outages[0].id)).toHaveLength(1);
   });
 
-  it("never evaluates nodes that have not sent a heartbeat yet", () => {
+  it("never evaluates nodes that have not sent a heartbeat yet", async () => {
     repos.nodes.upsert(
       makeNode({ id: "n9", lastHeartbeatAt: null, status: "healthy", batteryPct: null }),
     );
 
-    const outcome = sweepFieldState(repos, plusSeconds(T0, 3_600));
+    const outcome = await sweepFieldState(repos, plusSeconds(T0, 3_600));
 
     expect(outcome.statusChanges).toEqual([]);
     expect(repos.outages.listForNode("n9")).toEqual([]);
   });
 
-  it("expires an unconfirmed event past the confirmation window", () => {
+  it("expires an unconfirmed event past the confirmation window", async () => {
     repos.nodes.upsert(makeNode({ lastHeartbeatAt: plusSeconds(T0, 40) }));
     const event = makeOpenEvent("n2", T0);
     insertOpenEvent(repos, event);
 
     // Window is inclusive at the edge: 45s exactly must NOT expire.
-    const atEdge = sweepFieldState(repos, plusSeconds(T0, 45));
+    const atEdge = await sweepFieldState(repos, plusSeconds(T0, 45));
     expect(atEdge.expiredEventIds).toEqual([]);
     expect(repos.events.findById(event.id)?.state).toBe("unconfirmed");
 
-    const past = sweepFieldState(repos, plusSeconds(T0, 46));
+    const past = await sweepFieldState(repos, plusSeconds(T0, 46));
     expect(past.expiredEventIds).toEqual([event.id]);
     expect(repos.events.findById(event.id)?.state).toBe("expired");
     expect(past.streamEvents.map((entry) => entry.type)).toEqual(["event"]);
@@ -197,11 +197,11 @@ describe("sweepFieldState", () => {
     });
 
     // Expiry fires once; later sweeps leave the event alone.
-    const after = sweepFieldState(repos, plusSeconds(T0, 90));
+    const after = await sweepFieldState(repos, plusSeconds(T0, 90));
     expect(after.expiredEventIds).toEqual([]);
   });
 
-  it("leaves confirmed events untouched however old they are", () => {
+  it("leaves confirmed events untouched however old they are", async () => {
     repos.nodes.upsert(makeNode({ lastHeartbeatAt: plusSeconds(T0, 3_600) }));
     const event = makeOpenEvent("n2", T0, {
       state: "confirmed",
@@ -210,13 +210,13 @@ describe("sweepFieldState", () => {
     });
     insertOpenEvent(repos, event);
 
-    const outcome = sweepFieldState(repos, plusSeconds(T0, 3_600));
+    const outcome = await sweepFieldState(repos, plusSeconds(T0, 3_600));
 
     expect(outcome.expiredEventIds).toEqual([]);
     expect(repos.events.findById(event.id)?.state).toBe("confirmed");
   });
 
-  it("sweeps every node and open event in one pass", () => {
+  it("sweeps every node and open event in one pass", async () => {
     repos.nodes.upsert(makeNode()); // goes offline
     repos.nodes.upsert(
       makeNode({ id: "n1", name: "Village Boundary East", kind: "village_boundary", lastHeartbeatAt: plusSeconds(T0, 100) }),
@@ -224,7 +224,7 @@ describe("sweepFieldState", () => {
     const stale = makeOpenEvent("n1", T0, { id: "evt-stale" });
     insertOpenEvent(repos, stale);
 
-    const outcome = sweepFieldState(repos, plusSeconds(T0, 105));
+    const outcome = await sweepFieldState(repos, plusSeconds(T0, 105));
 
     expect(outcome.statusChanges).toEqual([{ nodeId: "n2", status: "offline" }]);
     expect(outcome.expiredEventIds).toEqual(["evt-stale"]);

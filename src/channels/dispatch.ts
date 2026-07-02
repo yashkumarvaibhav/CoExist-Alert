@@ -2,11 +2,11 @@ import { randomUUID } from "node:crypto";
 
 import { planCascade } from "@/domain/cascade";
 import type { PlannedAlert } from "@/domain/cascade";
-import type { Alert, IncursionEvent, Outage } from "@/domain/types";
+import type { Alert, IncursionEvent, Outage, SensorNode } from "@/domain/types";
 import type { createRepositories } from "@/db/repositories";
 import type { StreamEventDraft } from "@/stream/events";
 
-import { adapterForChannel, type DeliveryResult } from "./adapters";
+import { adapterForChannel, type DeliveryContext, type DeliveryResult } from "./adapters";
 
 type Repositories = ReturnType<typeof createRepositories>;
 
@@ -50,9 +50,27 @@ function updateFirstDeliveryAt(
   repos.events.update({ ...event, firstDeliveryAt: deliveredAt });
 }
 
-function dispatchAlert(repos: Repositories, alert: Alert): DispatchOutcome {
+function deliveryContext(
+  repos: Repositories,
+  event: IncursionEvent | null,
+  node: SensorNode | null,
+  targetRef: string,
+): DeliveryContext {
+  return {
+    event,
+    node,
+    responder: targetRef === "" ? null : repos.responders.findById(targetRef),
+    signals: event === null ? [] : repos.signals.listForEvent(event.id),
+  };
+}
+
+async function dispatchAlert(
+  repos: Repositories,
+  alert: Alert,
+  context: DeliveryContext,
+): Promise<DispatchOutcome> {
   const queued = repos.alerts.insert(alert);
-  const result = adapterForChannel(queued.channel).dispatch(queued);
+  const result = await adapterForChannel(queued.channel).dispatch(queued, context);
   const delivered =
     repos.alerts.updateStatus(queued.id, {
       status: result.status,
@@ -80,19 +98,19 @@ function mergeOutcomes(outcomes: DispatchOutcome[]): DispatchOutcome {
   };
 }
 
-export function dispatchCascadeForEvent(
+export async function dispatchCascadeForEvent(
   repos: Repositories,
   eventId: string,
   queuedAt: string,
-): DispatchOutcome {
+): Promise<DispatchOutcome> {
   const event = repos.events.findById(eventId);
   if (event === null || event.confirmedAt === null) {
-    return { alerts: [], streamEvents: [] };
+    return Promise.resolve({ alerts: [], streamEvents: [] });
   }
 
   const node = repos.nodes.findById(event.nodeId);
   if (node === null) {
-    return { alerts: [], streamEvents: [] };
+    return Promise.resolve({ alerts: [], streamEvents: [] });
   }
 
   const existing = new Set(repos.alerts.listForEvent(event.id).map(dispatchKey));
@@ -112,38 +130,9 @@ export function dispatchCascadeForEvent(
   for (const target of planned) {
     if (existing.has(dispatchKey(target))) continue;
     outcomes.push(
-      dispatchAlert(repos, {
-        id: makeId("alt"),
-        eventId: event.id,
-        outageId: null,
-        tier: target.tier,
-        channel: target.channel,
-        targetRef: target.targetRef,
-        status: "queued",
-        queuedAt,
-        sentAt: null,
-        deliveredAt: null,
-        failedReason: null,
-        isLive: false,
-      }),
-    );
-  }
-
-  return mergeOutcomes(outcomes);
-}
-
-export function dispatchPlannedTier(
-  repos: Repositories,
-  event: IncursionEvent,
-  targets: PlannedAlert[],
-  queuedAt: string,
-): DispatchOutcome {
-  const existing = new Set(repos.alerts.listForEvent(event.id).map(dispatchKey));
-  return mergeOutcomes(
-    targets
-      .filter((target) => !existing.has(dispatchKey(target)))
-      .map((target) =>
-        dispatchAlert(repos, {
+      await dispatchAlert(
+        repos,
+        {
           id: makeId("alt"),
           eventId: event.id,
           outageId: null,
@@ -156,39 +145,82 @@ export function dispatchPlannedTier(
           deliveredAt: null,
           failedReason: null,
           isLive: false,
-        }),
+        },
+        deliveryContext(repos, event, node, target.targetRef),
       ),
-  );
+    );
+  }
+
+  return mergeOutcomes(outcomes);
+}
+
+export function dispatchPlannedTier(
+  repos: Repositories,
+  event: IncursionEvent,
+  targets: PlannedAlert[],
+  queuedAt: string,
+): Promise<DispatchOutcome> {
+  const existing = new Set(repos.alerts.listForEvent(event.id).map(dispatchKey));
+  const node = repos.nodes.findById(event.nodeId);
+  return Promise.all(
+    targets
+      .filter((target) => !existing.has(dispatchKey(target)))
+      .map((target) =>
+        dispatchAlert(
+          repos,
+          {
+            id: makeId("alt"),
+            eventId: event.id,
+            outageId: null,
+            tier: target.tier,
+            channel: target.channel,
+            targetRef: target.targetRef,
+            status: "queued",
+            queuedAt,
+            sentAt: null,
+            deliveredAt: null,
+            failedReason: null,
+            isLive: false,
+          },
+          deliveryContext(repos, event, node, target.targetRef),
+        ),
+      ),
+  ).then(mergeOutcomes);
 }
 
 export function dispatchBlindspotAlert(
   repos: Repositories,
   outage: Outage,
   queuedAt: string,
-): DispatchOutcome {
+): Promise<DispatchOutcome> {
   if (!outage.opsAlerted) {
-    return { alerts: [], streamEvents: [] };
+    return Promise.resolve({ alerts: [], streamEvents: [] });
   }
 
   const alreadyDispatched = repos.alerts
     .listForOutage(outage.id)
     .some((alert) => alert.channel === "blindspot_ops");
   if (alreadyDispatched) {
-    return { alerts: [], streamEvents: [] };
+    return Promise.resolve({ alerts: [], streamEvents: [] });
   }
 
-  return dispatchAlert(repos, {
-    id: makeId("alt"),
-    eventId: null,
-    outageId: outage.id,
-    tier: 1,
-    channel: "blindspot_ops",
-    targetRef: outage.nodeId,
-    status: "queued",
-    queuedAt,
-    sentAt: null,
-    deliveredAt: null,
-    failedReason: null,
-    isLive: false,
-  });
+  const node = repos.nodes.findById(outage.nodeId);
+  return dispatchAlert(
+    repos,
+    {
+      id: makeId("alt"),
+      eventId: null,
+      outageId: outage.id,
+      tier: 1,
+      channel: "blindspot_ops",
+      targetRef: outage.nodeId,
+      status: "queued",
+      queuedAt,
+      sentAt: null,
+      deliveredAt: null,
+      failedReason: null,
+      isLive: false,
+    },
+    deliveryContext(repos, null, node, ""),
+  );
 }

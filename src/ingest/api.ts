@@ -19,7 +19,7 @@ import {
 export async function handleHeartbeatPost(request: Request): Promise<NextResponse> {
   try {
     const payload = await parseRequestBody(request, heartbeatPayloadSchema);
-    const outcome = ingestHeartbeat(getRuntimeRepositories(), payload);
+    const outcome = await ingestHeartbeat(getRuntimeRepositories(), payload);
     publishStreamEvents(outcome.streamEvents);
     return NextResponse.json(
       {
@@ -39,7 +39,7 @@ export async function handleHeartbeatPost(request: Request): Promise<NextRespons
 export async function handleDetectionPost(request: Request): Promise<NextResponse> {
   try {
     const payload = await parseRequestBody(request, detectionPayloadSchema);
-    const outcome = ingestDetection(getRuntimeRepositories(), payload);
+    const outcome = await ingestDetection(getRuntimeRepositories(), payload);
     publishStreamEvents(outcome.streamEvents);
     return NextResponse.json(
       {
