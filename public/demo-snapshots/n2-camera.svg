@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" role="img" aria-labelledby="title desc">
+  <title id="title">Simulated rail crossing camera snapshot</title>
+  <desc id="desc">Stylised demo snapshot of an animal near a rail crossing.</desc>
+  <rect width="960" height="540" fill="#10191b"/>
+  <rect y="320" width="960" height="220" fill="#182426"/>
+  <path d="M100 540 L430 250" stroke="#94a3a4" stroke-width="18"/>
+  <path d="M225 540 L515 250" stroke="#94a3a4" stroke-width="18"/>
+  <g stroke="#4d5a5c" stroke-width="12">
+    <path d="M140 502 L265 392"/>
+    <path d="M206 446 L324 342"/>
+    <path d="M278 384 L386 289"/>
+  </g>
+  <path d="M0 320 C170 250 290 285 445 240 C610 190 740 215 960 160 L960 320 Z" fill="#263c3e"/>
+  <g transform="translate(545 300)" fill="#0b1112">
+    <ellipse cx="75" cy="75" rx="108" ry="48"/>
+    <circle cx="170" cy="42" r="38"/>
+    <path d="M196 44 c46 16 58 44 46 72 c-10 24 -43 37 -76 28 c24 -25 31 -59 30 -100z"/>
+    <rect x="8" y="104" width="18" height="74" rx="9"/>
+    <rect x="68" y="110" width="18" height="68" rx="9"/>
+    <rect x="132" y="108" width="18" height="70" rx="9"/>
+  </g>
+  <circle cx="724" cy="72" r="12" fill="#7ce4de"/>
+  <path d="M724 72 L665 284" stroke="#7ce4de" stroke-width="2" opacity="0.7"/>
+  <rect x="30" y="30" width="248" height="50" rx="12" fill="rgba(245,248,248,0.12)" stroke="rgba(124,228,222,0.55)"/>
+  <text x="50" y="62" fill="#f5f8f8" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700">SIMULATED DEMO SNAPSHOT</text>
+</svg>

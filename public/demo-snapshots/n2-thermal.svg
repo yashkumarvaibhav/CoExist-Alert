@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" role="img" aria-labelledby="title desc">
+  <title id="title">Simulated thermal rail crossing snapshot</title>
+  <desc id="desc">Stylised thermal demo snapshot confirming an animal near the rail crossing.</desc>
+  <rect width="960" height="540" fill="#0c1416"/>
+  <rect x="0" y="0" width="960" height="540" fill="#152325"/>
+  <g opacity="0.45" stroke="#7ce4de" stroke-width="1">
+    <path d="M0 90 H960"/>
+    <path d="M0 180 H960"/>
+    <path d="M0 270 H960"/>
+    <path d="M0 360 H960"/>
+    <path d="M0 450 H960"/>
+    <path d="M120 0 V540"/>
+    <path d="M240 0 V540"/>
+    <path d="M360 0 V540"/>
+    <path d="M480 0 V540"/>
+    <path d="M600 0 V540"/>
+    <path d="M720 0 V540"/>
+    <path d="M840 0 V540"/>
+  </g>
+  <g transform="translate(335 220)">
+    <ellipse cx="135" cy="82" rx="150" ry="58" fill="#e0a35a"/>
+    <circle cx="272" cy="42" r="48" fill="#e06b6b"/>
+    <path d="M308 44 c54 18 70 54 55 88 c-12 29 -52 45 -94 34 c31 -31 41 -74 39 -122z" fill="#e0a35a"/>
+    <rect x="34" y="125" width="24" height="94" rx="12" fill="#e06b6b"/>
+    <rect x="126" y="134" width="24" height="84" rx="12" fill="#e0a35a"/>
+    <rect x="214" y="130" width="24" height="88" rx="12" fill="#e06b6b"/>
+  </g>
+  <rect x="30" y="30" width="248" height="50" rx="12" fill="rgba(245,248,248,0.12)" stroke="rgba(124,228,222,0.55)"/>
+  <text x="50" y="62" fill="#f5f8f8" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700">SIMULATED DEMO SNAPSHOT</text>
+  <text x="50" y="500" fill="#a7b2b3" font-family="Arial, Helvetica, sans-serif" font-size="22">thermal corroboration · rail crossing KM-47</text>
+</svg>

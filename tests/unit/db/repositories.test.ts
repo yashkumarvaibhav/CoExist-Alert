@@ -12,6 +12,7 @@ import type {
   Responder,
   SensorNode,
   Signal,
+  VillagerZone,
 } from "@/domain/types";
 
 describe("database repositories", () => {
@@ -116,6 +117,15 @@ describe("database repositories", () => {
       };
       repos.responders.upsert(responder);
       expect(repos.responders.listForNode("n2")).toEqual([responder]);
+
+      const nearbyZone: VillagerZone = {
+        id: "zone-chalsa-basti",
+        label: "Chalsa Basti",
+        lat: 26.891,
+        lng: 88.887,
+      };
+      repos.villagerZones.upsert(nearbyZone);
+      expect(repos.villagerZones.list()).toEqual([nearbyZone]);
 
       const alert: Alert = {
         id: "alert-1",

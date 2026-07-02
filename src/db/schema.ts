@@ -19,6 +19,7 @@ import type {
   ResponderRole,
   ResponseAction,
   SignalSource,
+  VillagerZone,
 } from "@/domain/types";
 
 const isoText = (name: string) => text(name).notNull();
@@ -152,6 +153,17 @@ export const responders = sqliteTable(
   ],
 );
 
+export const villagerZones = sqliteTable(
+  "villager_zones",
+  {
+    id: text("id").primaryKey(),
+    label: text("label").notNull(),
+    lat: real("lat").notNull(),
+    lng: real("lng").notNull(),
+  },
+  (table) => [index("villager_zones_label_idx").on(table.label)],
+);
+
 export const alerts = sqliteTable(
   "alerts",
   {
@@ -244,4 +256,7 @@ export const schema = {
   responses,
   settings,
   signals,
+  villagerZones,
 };
+
+export type VillagerZoneRow = typeof villagerZones.$inferSelect & VillagerZone;

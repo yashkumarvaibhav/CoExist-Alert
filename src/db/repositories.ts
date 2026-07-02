@@ -12,6 +12,7 @@ import type {
   SensorNode,
   Settings,
   Signal,
+  VillagerZone,
 } from "@/domain/types";
 
 import type { AppDatabase } from "./client";
@@ -25,6 +26,7 @@ import {
   responses,
   settings as settingsTable,
   signals,
+  villagerZones,
 } from "./schema";
 
 const SETTINGS_ROW_ID = "default";
@@ -201,6 +203,30 @@ export function createRepositories(db: AppDatabase) {
 
       listForNode(nodeId: string): Responder[] {
         return this.list().filter((responder) => responder.nodeIds.includes(nodeId));
+      },
+    },
+
+    villagerZones: {
+      upsert(zone: VillagerZone): VillagerZone {
+        return db
+          .insert(villagerZones)
+          .values(zone)
+          .onConflictDoUpdate({
+            target: villagerZones.id,
+            set: zone,
+          })
+          .returning()
+          .get();
+      },
+
+      findById(id: string): VillagerZone | null {
+        return orNull(
+          db.select().from(villagerZones).where(eq(villagerZones.id, id)).get(),
+        );
+      },
+
+      list(): VillagerZone[] {
+        return db.select().from(villagerZones).orderBy(asc(villagerZones.id)).all();
       },
     },
 
