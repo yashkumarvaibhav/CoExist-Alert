@@ -41,18 +41,32 @@ function simulatorAutostartEnabled(): boolean {
   return envFlag(value);
 }
 
+interface FieldRuntimeState {
+  sweepTimer: ReturnType<typeof setInterval>;
+}
+
 export function startFieldRuntime(): void {
-  if (globalStore[BOOT_KEY] === true) return;
-  globalStore[BOOT_KEY] = true;
+  if (globalStore[BOOT_KEY] !== undefined) return;
 
   // Boot catch-up: recover heartbeat-timeout state from the DB before the
   // interval takes over — downtime must surface as outages, not silence.
   runFieldSweep();
   const sweepTimer = setInterval(runFieldSweep, SWEEP_INTERVAL_MS);
   sweepTimer.unref?.();
+  globalStore[BOOT_KEY] = { sweepTimer } satisfies FieldRuntimeState;
 
   const simulator = getOrCreateSimulator();
   if (simulatorAutostartEnabled()) {
     simulator.start();
   }
+}
+
+/** Test hook: stop the sweep interval and forget the boot flag. */
+export function resetFieldRuntime(): void {
+  const state = globalStore[BOOT_KEY] as FieldRuntimeState | undefined;
+  if (state !== undefined) {
+    clearInterval(state.sweepTimer);
+  }
+  delete globalStore[BOOT_KEY];
+  lastSweepError = null;
 }
