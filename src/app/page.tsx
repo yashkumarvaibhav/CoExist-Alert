@@ -1,11 +1,12 @@
 import { ThemeToggle } from "@/components/theme-toggle";
+import { APP_NAME } from "@/lib/app-info";
 
 export default function Home() {
   return (
     <div className="flex min-h-screen flex-col bg-page">
       <header className="flex items-center justify-between border-b border-line px-6 py-3">
         <span className="font-serif text-2xl font-medium tracking-tight text-ink">
-          CoExist Alert
+          {APP_NAME}
         </span>
         <ThemeToggle />
       </header>
