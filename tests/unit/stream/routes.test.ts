@@ -12,6 +12,7 @@ import { resetRuntimeDatabase } from "@/db/runtime";
 import { nodes } from "@/db/schema";
 import { DEFAULT_SETTINGS } from "@/domain/types";
 import type { SensorNode, Signal } from "@/domain/types";
+import { resetSimulator } from "@/sim/runtime";
 import { resetStreamHub, streamHub } from "@/stream/hub";
 
 const T0 = "2026-07-02T04:58:02.000Z";
@@ -57,11 +58,13 @@ describe("stream and health routes", () => {
     delete process.env.WEBEX_ROOM_ID;
     resetRuntimeDatabase();
     resetStreamHub();
+    resetSimulator();
   });
 
   afterEach(() => {
     resetRuntimeDatabase();
     resetStreamHub();
+    resetSimulator();
     if (originalWebexToken === undefined) {
       delete process.env.WEBEX_BOT_TOKEN;
     } else {

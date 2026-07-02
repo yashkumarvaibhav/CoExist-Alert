@@ -38,7 +38,21 @@ export class StreamHub {
   }
 }
 
-export const streamHub = new StreamHub();
+// Anchored on globalThis: Next.js compiles instrumentation and route handlers
+// into separate module graphs, so a module-level singleton would fork and
+// sweep/simulator publishes would never reach SSE subscribers.
+const HUB_KEY = Symbol.for("coexist-alert.stream-hub");
+const globalStore = globalThis as unknown as Record<symbol, unknown>;
+
+function resolveHub(): StreamHub {
+  const existing = globalStore[HUB_KEY] as StreamHub | undefined;
+  if (existing !== undefined) return existing;
+  const hub = new StreamHub();
+  globalStore[HUB_KEY] = hub;
+  return hub;
+}
+
+export const streamHub = resolveHub();
 
 export function publishStreamEvents(drafts: StreamEventDraft[]): FieldStreamEvent[] {
   return drafts.map((draft) => streamHub.publish(draft));

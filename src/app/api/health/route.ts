@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import { getRuntimeDatabaseClient } from "@/db/runtime";
 import { nodes } from "@/db/schema";
+import { simulatorHealth } from "@/sim/runtime";
 
 function webexMode(): "live" | "simulated" {
   return process.env.WEBEX_BOT_TOKEN && process.env.WEBEX_ROOM_ID
@@ -17,7 +18,7 @@ export function GET() {
     return NextResponse.json({
       ok: true,
       db: { status: "ok", nodes: nodeCount },
-      simulator: { status: "not_started" },
+      simulator: simulatorHealth(),
       webex: webexMode(),
     });
   } catch {
@@ -25,7 +26,7 @@ export function GET() {
       {
         ok: false,
         db: { status: "error" },
-        simulator: { status: "not_started" },
+        simulator: simulatorHealth(),
         webex: webexMode(),
       },
       { status: 503 },
