@@ -11,26 +11,74 @@ test("analytics renders the hotspot heatmap with honest scope captions", async (
   await expect(page.getByText("SIMULATED").first()).toBeVisible();
   await expect(page.getByText("Splunk-style aggregation")).toBeVisible();
   await expect(page.getByText(/30 d window/)).toBeVisible();
-  await expect(page.getByText(/sample n=/)).toBeVisible();
+  const heatmap = page.getByRole("region", { name: "Hotspot heatmap" });
+  await expect(heatmap.getByText(/sample n=/)).toBeVisible();
   await expect(page.getByText("Peak cell")).toBeVisible();
   await expect(page.getByText("Dawn band")).toBeVisible();
   await expect(page.getByText("Dusk band")).toBeVisible();
 
   await expect(
-    page.getByRole("img", { name: "Thirty day node by hour hotspot heatmap" }),
+    page.getByRole("img", { name: "30 d node by hour hotspot heatmap" }),
   ).toBeVisible();
-  const heatmap = page.getByRole("region", { name: "Hotspot heatmap" });
   await expect(heatmap.getByText("Rail Crossing KM-47").first()).toBeVisible();
   await expect(heatmap.getByText("04:00-07:59 IST")).toBeVisible();
   await expect(heatmap.getByText("17:00-20:59 IST")).toBeVisible();
 });
 
-test("analytics route has no horizontal overflow", async ({ page }) => {
+test("analytics renders reliability KPI definitions and trend strips", async ({
+  page,
+}) => {
   await page.goto("/command/analytics");
-  const overflow = await page.evaluate(
-    () =>
-      document.documentElement.scrollWidth >
-      document.documentElement.clientWidth,
+
+  const kpis = page.getByRole("region", { name: "Reliability KPIs" });
+  await expect(kpis.getByText("Median + p95 lead time")).toBeVisible();
+  await expect(kpis.getByText("Delivery success by channel")).toBeVisible();
+  await expect(kpis.getByText("Response time")).toBeVisible();
+  await expect(kpis.getByText("Uptime by node")).toBeVisible();
+  await expect(kpis.getByText("Blind-spot minutes")).toBeVisible();
+  await expect(kpis.getByText(/sample n=/).first()).toBeVisible();
+  await expect(
+    kpis.getByText("Detection opened to first delivered alert."),
+  ).toBeVisible();
+  await expect(
+    kpis.getByRole("img", { name: "Events/day trend" }),
+  ).toBeVisible();
+  await expect(
+    kpis.getByRole("img", { name: "Response-time trend" }),
+  ).toBeVisible();
+});
+
+test("analytics exposes the insufficient-sample state for a tiny window", async ({
+  page,
+}) => {
+  await page.goto("/command/analytics?window=1h");
+
+  await expect(page.getByRole("link", { name: "1 h" })).toHaveAttribute(
+    "aria-current",
+    "page",
   );
-  expect(overflow).toBe(false);
+  await expect(page.getByText("No confirmed events in window.").first()).toBeVisible();
+  const kpis = page.getByRole("region", { name: "Reliability KPIs" });
+  const leadTime = kpis.getByRole("article", {
+    name: "Median + p95 lead time",
+  });
+  const delivery = kpis.getByRole("article", {
+    name: "Delivery success by channel",
+  });
+  await expect(leadTime.getByText("n < 5").first()).toBeVisible();
+  await expect(leadTime.getByText("sample n=0")).toBeVisible();
+  await expect(delivery.getByText("n < 5").first()).toBeVisible();
+  await expect(delivery.getByText("sample n=0")).toBeVisible();
+});
+
+test("analytics route has no horizontal overflow", async ({ page }) => {
+  for (const path of ["/command/analytics", "/command/analytics?window=1h"]) {
+    await page.goto(path);
+    const overflow = await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth >
+        document.documentElement.clientWidth,
+    );
+    expect(overflow, `horizontal overflow on ${path}`).toBe(false);
+  }
 });

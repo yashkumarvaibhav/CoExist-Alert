@@ -94,7 +94,7 @@ export function HotspotHeatmap({
           </p>
         </div>
         <p className="max-w-md text-xs text-muted">
-          {snapshot.window.days} d window · {formatIstDateTime(snapshot.window.fromIso)} to{" "}
+          {snapshot.window.label} window · {formatIstDateTime(snapshot.window.fromIso)} to{" "}
           {formatIstDateTime(snapshot.window.toIso)} IST · sample n={snapshot.sampleSize}
         </p>
       </div>
@@ -158,7 +158,7 @@ export function HotspotHeatmap({
                 className="block h-auto w-full max-w-full overflow-hidden"
               >
                 <title id="hotspot-chart-title">
-                  Thirty day node by hour hotspot heatmap
+                  {snapshot.window.label} node by hour hotspot heatmap
                 </title>
                 <desc id="hotspot-chart-desc">
                   Confirmed event counts by sensor node and IST hour, with
