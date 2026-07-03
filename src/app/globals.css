@@ -331,17 +331,41 @@ h3 { font-size: 1.1rem; }
 .search-palette-results,
 .search-palette-group,
 .search-palette-heading,
-.search-palette-option {
+.search-palette-option,
+.search-palette-footer {
   background: var(--raised);
 }
 .search-palette-input:focus-visible {
   outline: none;
 }
+/* Focus is shown by tinting the input row and its bottom divider teal — a
+   contained indicator that can't be clipped by the panel's rounded
+   overflow-hidden border the way an offset outline ring would be. The tint is
+   layered over an opaque base so the row still paints above map tiles. */
 .search-palette-input-row:focus-within {
-  box-shadow: inset 0 0 0 2px var(--accent);
+  border-bottom-color: var(--accent);
+  background:
+    linear-gradient(var(--accent-soft), var(--accent-soft)) var(--raised);
 }
 .search-palette-option[aria-selected="true"] {
-  background: var(--accent-soft);
+  background:
+    linear-gradient(var(--accent-soft), var(--accent-soft)) var(--raised);
+}
+.search-palette-backdrop {
+  animation: search-palette-fade 150ms ease-out;
+}
+@keyframes search-palette-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .search-palette-backdrop {
+    animation: none;
+  }
 }
 
 .coexist-marker {

@@ -79,6 +79,24 @@ export function CommandShell({
       </a>
 
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 overflow-y-auto border-r border-line bg-sidebar lg:block">
+        <div className="border-b border-line px-4 py-4">
+          <Link href="/command" className="flex items-center gap-2.5">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-sm border border-line bg-white">
+              <Image
+                src="/coexist-icon.png"
+                alt=""
+                width={28}
+                height={28}
+                priority
+                className="h-7 w-7 object-contain"
+              />
+            </span>
+            <span className="min-w-0 truncate font-serif text-xl font-medium tracking-tight text-ink">
+              {APP_NAME}
+            </span>
+          </Link>
+          <p className="mt-2 text-xs text-muted">Early-warning command console</p>
+        </div>
         <CommandNav nodes={nodes} />
       </aside>
 
@@ -108,7 +126,7 @@ export function CommandShell({
 
           <Link
             href="/command"
-            className="hidden min-w-0 items-center gap-2.5 sm:flex"
+            className="hidden min-w-0 items-center gap-2.5 sm:flex lg:hidden"
           >
             <span className="flex size-9 shrink-0 items-center justify-center rounded-sm border border-line bg-white">
               <Image
@@ -125,8 +143,9 @@ export function CommandShell({
             </span>
           </Link>
 
-          <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
-            <SearchPalette items={searchItems} />
+          <SearchPalette items={searchItems} />
+
+          <div className="ml-auto flex shrink-0 items-center gap-1 max-lg:ml-0 sm:gap-2">
             <LiveStatus />
             <SoundToggle />
             <RoleSwitcher />
@@ -136,7 +155,7 @@ export function CommandShell({
 
         <ConnectionBanner />
 
-        <main id="main" tabIndex={-1} className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">
+        <main id="main" tabIndex={-1} className="min-w-0 flex-1 overflow-x-clip px-4 py-6 sm:px-6 lg:px-8">
           {children}
         </main>
 

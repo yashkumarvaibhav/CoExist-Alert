@@ -154,11 +154,11 @@ export function SearchPalette({ items }: { items: SearchItem[] }) {
   const palette =
     open && typeof document !== "undefined"
       ? createPortal(
-          <div className="search-palette-overlay fixed inset-0 flex items-start justify-center p-4 pt-[10vh] sm:pt-[14vh]">
+          <div className="search-palette-overlay fixed inset-0 flex items-start justify-center px-4 pt-[12vh]">
             <div
               aria-hidden="true"
               onClick={closePalette}
-              className="absolute inset-0 bg-black/40"
+              className="search-palette-backdrop absolute inset-0 bg-ink/45 backdrop-blur-[2px]"
             />
             <div
               ref={dialogRef}
@@ -166,10 +166,10 @@ export function SearchPalette({ items }: { items: SearchItem[] }) {
               aria-modal="true"
               aria-label="Search command console"
               onKeyDown={onDialogKeyDown}
-              className="search-palette-panel relative flex max-h-[70vh] w-full max-w-xl flex-col overflow-hidden rounded-lg border border-line bg-raised shadow-lg"
+              className="search-palette-panel relative flex w-full max-w-xl flex-col overflow-hidden rounded-lg border border-line bg-raised shadow-lg"
             >
-              <div className="search-palette-input-row flex items-center gap-2 border-b border-line px-3">
-                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-faint">
+              <div className="search-palette-input-row flex h-11 items-center gap-2 border-b border-line px-3 transition-colors motion-reduce:transition-none">
+                <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-muted">
                   <circle cx="11" cy="11" r="7" />
                   <path d="m20 20-3.5-3.5" />
                 </svg>
@@ -190,16 +190,13 @@ export function SearchPalette({ items }: { items: SearchItem[] }) {
                     setActiveIndex(0);
                   }}
                   onKeyDown={onInputKeyDown}
-                  className="search-palette-input min-h-12 flex-1 bg-transparent py-3 text-sm text-ink outline-none placeholder:text-faint"
+                  className="search-palette-input h-11 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-faint"
                 />
-                <kbd className="hidden shrink-0 rounded border border-line bg-sidebar px-1.5 py-0.5 font-sans text-[10px] font-medium text-faint sm:inline">
-                  Esc
-                </kbd>
               </div>
 
-              <div ref={listRef} id={listboxId} role="listbox" aria-label="Search results" className="search-palette-results min-h-0 flex-1 overflow-y-auto bg-raised p-2">
+              <div ref={listRef} id={listboxId} role="listbox" aria-label="Search results" className="search-palette-results max-h-72 overflow-y-auto overflow-x-hidden bg-raised p-1">
                 {flat.length === 0 ? (
-                  <p className="px-3 py-8 text-center text-sm text-muted">
+                  <p className="px-3 py-7 text-center text-sm text-muted">
                     No matches — try a node or species name.
                   </p>
                 ) : (
@@ -208,9 +205,9 @@ export function SearchPalette({ items }: { items: SearchItem[] }) {
                       key={group.group}
                       role="group"
                       aria-label={group.group}
-                      className="search-palette-group flex flex-col"
+                      className="search-palette-group flex flex-col p-1"
                     >
-                      <p className="search-palette-heading px-2 pb-1 pt-3 text-[11px] font-medium uppercase tracking-[0.12em] text-faint">
+                      <p className="search-palette-heading px-2 py-2 text-xs font-semibold uppercase tracking-wider text-muted">
                         {group.group}
                       </p>
                       {group.items.map((item) => {
@@ -225,7 +222,7 @@ export function SearchPalette({ items }: { items: SearchItem[] }) {
                             aria-selected={active}
                             onMouseMove={() => setActiveIndex(index)}
                             onClick={() => selectItem(item)}
-                            className={`search-palette-option flex cursor-pointer items-center justify-between gap-3 rounded-md px-2 py-2 text-sm ${
+                            className={`search-palette-option flex min-h-10 cursor-pointer items-center justify-between gap-3 rounded-sm px-2 py-2 text-sm ${
                               active ? "bg-accent-soft text-ink" : "text-body"
                             }`}
                           >
@@ -248,6 +245,23 @@ export function SearchPalette({ items }: { items: SearchItem[] }) {
                 )}
               </div>
 
+              <div className="search-palette-footer flex items-center gap-3 border-t border-line px-3 py-2 text-[11px] text-faint">
+                <span className="inline-flex items-center gap-1">
+                  <kbd className="inline-flex min-h-5 min-w-5 items-center justify-center rounded-sm border border-line px-1 text-[10px] text-muted">↑</kbd>
+                  <kbd className="inline-flex min-h-5 min-w-5 items-center justify-center rounded-sm border border-line px-1 text-[10px] text-muted">↓</kbd>
+                  <span>Navigate</span>
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <kbd className="inline-flex min-h-5 min-w-5 items-center justify-center rounded-sm border border-line px-1 text-[10px] text-muted">↵</kbd>
+                  <span>Select</span>
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <kbd className="inline-flex min-h-5 min-w-5 items-center justify-center rounded-sm border border-line px-1 text-[10px] text-muted">Esc</kbd>
+                  <span>Close</span>
+                </span>
+                <span className="ml-auto hidden sm:inline">All times IST</span>
+              </div>
+
               <p aria-live="polite" className="sr-only">
                 {flat.length === 0
                   ? "No results"
@@ -267,14 +281,14 @@ export function SearchPalette({ items }: { items: SearchItem[] }) {
         onClick={openPalette}
         aria-haspopup="dialog"
         aria-label="Search — open command palette"
-        className="flex h-11 w-11 items-center justify-center gap-2 rounded-md border border-line text-sm text-muted transition-colors hover:bg-hover sm:w-auto sm:px-3"
+        className="flex h-11 w-11 items-center justify-center rounded-md border border-line text-sm text-muted transition-colors hover:bg-hover max-lg:ml-auto lg:w-64 lg:justify-start lg:gap-2 lg:px-3"
       >
-        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
           <circle cx="11" cy="11" r="7" />
           <path d="m20 20-3.5-3.5" />
         </svg>
-        <span className="hidden lg:inline">Search</span>
-        <kbd className="hidden rounded border border-line bg-sidebar px-1.5 py-0.5 font-sans text-[10px] font-medium text-faint lg:inline">
+        <span className="hidden truncate lg:inline">Search the console</span>
+        <kbd className="ml-auto hidden shrink-0 rounded border border-line bg-sidebar px-1.5 py-0.5 font-sans text-[10px] font-medium text-faint lg:inline">
           ⌘K
         </kbd>
       </button>

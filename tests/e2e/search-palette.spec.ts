@@ -1,4 +1,14 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+
+// The global shortcuts only exist once React has hydrated; the live-stream
+// status flipping to "Live" is the earliest reliable signal of that.
+async function gotoHydrated(page: Page, path: string): Promise<void> {
+  await page.goto(path);
+  await expect(page.getByRole("status", { name: /live data stream/i })).toContainText(
+    "Live",
+    { timeout: 15_000 },
+  );
+}
 
 test("the top-bar trigger opens the palette focused on the search input", async ({
   page,
@@ -62,21 +72,56 @@ test("the palette stays above the dashboard map layer", async ({ page }) => {
   expect(inputOutline).toBe("none");
 });
 
-test("Ctrl+K toggles the palette open", async ({ page }) => {
+test("the palette sits at 12vh over a dimmed, blurred backdrop with key hints", async ({
+  page,
+}) => {
   await page.goto("/command");
+  await page.getByRole("button", { name: /search.*command palette/i }).click();
+
+  const dialog = page.getByRole("dialog", { name: /search command console/i });
+  await expect(dialog).toBeVisible();
+
+  // Panel anchored at 12vh from the top of the viewport.
+  const viewport = page.viewportSize();
+  const box = await dialog.boundingBox();
+  expect(box).not.toBeNull();
+  if (box && viewport) {
+    expect(Math.abs(box.y - viewport.height * 0.12)).toBeLessThanOrEqual(2);
+  }
+
+  // Backdrop dims and blurs the page behind the panel.
+  const backdrop = page.locator(".search-palette-backdrop");
+  const styles = await backdrop.evaluate((element) => {
+    const computed = getComputedStyle(element);
+    return {
+      backdropFilter: computed.backdropFilter,
+      backgroundColor: computed.backgroundColor,
+    };
+  });
+  expect(styles.backdropFilter).toContain("blur");
+  expect(styles.backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+
+  // Keyboard hint footer.
+  await expect(dialog.getByText("Navigate")).toBeVisible();
+  await expect(dialog.getByText("Select")).toBeVisible();
+  await expect(dialog.getByText("Close")).toBeVisible();
+});
+
+test("Ctrl+K toggles the palette open", async ({ page }) => {
+  await gotoHydrated(page, "/command");
   await page.keyboard.press("Control+k");
   await expect(page.getByRole("dialog", { name: /search command console/i })).toBeVisible();
 });
 
 test("`/` opens the palette when no field is focused", async ({ page }) => {
-  await page.goto("/command");
+  await gotoHydrated(page, "/command");
   await page.locator("body").click();
   await page.keyboard.press("/");
   await expect(page.getByRole("dialog", { name: /search command console/i })).toBeVisible();
 });
 
 test("typing filters to a node and Enter navigates to it", async ({ page }) => {
-  await page.goto("/command");
+  await gotoHydrated(page, "/command");
   await page.keyboard.press("Control+k");
   const dialog = page.getByRole("dialog", { name: /search command console/i });
   await dialog.getByRole("combobox").fill("waterhole");

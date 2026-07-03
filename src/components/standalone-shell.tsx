@@ -70,7 +70,7 @@ export function StandaloneShell({
         <main
           id="main"
           tabIndex={-1}
-          className={`mx-auto flex w-full flex-1 flex-col gap-6 px-4 py-8 sm:px-6 ${
+          className={`mx-auto flex w-full flex-1 flex-col gap-6 overflow-x-clip px-4 py-8 sm:px-6 ${
             wide ? "max-w-6xl" : "max-w-xl"
           }`}
         >
