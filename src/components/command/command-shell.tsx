@@ -6,8 +6,10 @@ import { useEffect, useRef, useState } from "react";
 
 import { BuildStamp } from "@/components/build-stamp";
 import { CommandNav, type NavNode } from "@/components/command/command-nav";
+import type { SearchItem } from "@/lib/search";
 import { LiveStatus } from "@/components/command/live-status";
 import { RoleSwitcher } from "@/components/command/role-switcher";
+import { SearchPalette } from "@/components/command/search-palette";
 import { SoundToggle } from "@/components/command/sound-toggle";
 import { ConfirmedChime } from "@/components/confirmed-chime";
 import { ConnectionBanner } from "@/components/connection-banner";
@@ -22,9 +24,11 @@ import { APP_NAME } from "@/lib/app-info";
  */
 export function CommandShell({
   nodes,
+  searchItems,
   children,
 }: {
   nodes: NavNode[];
+  searchItems: SearchItem[];
   children: React.ReactNode;
 }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -118,7 +122,8 @@ export function CommandShell({
             </span>
           </Link>
 
-          <div className="ml-auto flex shrink-0 items-center gap-2">
+          <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
+            <SearchPalette items={searchItems} />
             <LiveStatus />
             <SoundToggle />
             <RoleSwitcher />
