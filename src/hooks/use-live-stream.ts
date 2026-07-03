@@ -1,14 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import {
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
+import {
+  LiveStreamContext,
+  createClientStreamHub,
+  type ClientStreamHub,
+  type LiveStreamStatus,
+} from "@/components/live-stream-provider";
 import {
   STREAM_EVENT_TYPES,
   type FieldStreamEvent,
   type StreamEventType,
 } from "@/stream/events";
 
-export type LiveStreamStatus = "connecting" | "open" | "reconnecting";
+export type { LiveStreamStatus };
 
 export interface UseLiveStreamOptions {
   url?: string;
@@ -16,62 +28,49 @@ export interface UseLiveStreamOptions {
   onEvent?: (event: FieldStreamEvent) => void;
 }
 
-export interface LiveStreamState {
-  status: LiveStreamStatus;
-  lastEvent: FieldStreamEvent | null;
-  events: FieldStreamEvent[];
-  errorCount: number;
-}
-
+/**
+ * Live field-stream subscription. Inside a <LiveStreamProvider> every caller
+ * shares one EventSource; without one the hook opens its own (standalone
+ * views). Pass a stable `types` array; `onEvent` is read through a ref so its
+ * identity never resubscribes the stream.
+ */
 export function useLiveStream({
   url = "/api/stream",
   types = STREAM_EVENT_TYPES,
   onEvent,
-}: UseLiveStreamOptions = {}): LiveStreamState {
-  const [state, setState] = useState<LiveStreamState>({
-    status: "connecting",
-    lastEvent: null,
-    events: [],
-    errorCount: 0,
+}: UseLiveStreamOptions = {}): { status: LiveStreamStatus } {
+  const sharedHub = useContext(LiveStreamContext);
+  // Standalone fallback (no provider): the component owns its own stream.
+  const [localHub] = useState<ClientStreamHub | null>(() =>
+    sharedHub === null ? createClientStreamHub(url) : null,
+  );
+  const hub = sharedHub ?? (localHub as ClientStreamHub);
+
+  const onEventRef = useRef(onEvent);
+  useEffect(() => {
+    onEventRef.current = onEvent;
   });
+  const hasHandler = onEvent !== undefined;
 
   useEffect(() => {
-    const source = new EventSource(url);
-    const listeners: Array<[StreamEventType, EventListener]> = [];
+    if (sharedHub !== null || localHub === null) return;
+    localHub.connect();
+    return () => localHub.disconnect();
+  }, [localHub, sharedHub]);
 
-    source.onopen = () => {
-      setState((current) => ({ ...current, status: "open" }));
-    };
-    source.onerror = () => {
-      setState((current) => ({
-        ...current,
-        status: "reconnecting",
-        errorCount: current.errorCount + 1,
-      }));
-    };
+  useEffect(() => {
+    if (!hasHandler || types.length === 0) return;
+    return hub.subscribeEvents({
+      types: new Set(types),
+      onEvent: (event) => onEventRef.current?.(event),
+    });
+  }, [hasHandler, hub, types]);
 
-    for (const type of types) {
-      const listener: EventListener = (message) => {
-        const parsed = JSON.parse((message as MessageEvent<string>).data) as FieldStreamEvent;
-        onEvent?.(parsed);
-        setState((current) => ({
-          ...current,
-          status: "open",
-          lastEvent: parsed,
-          events: [...current.events.slice(-99), parsed],
-        }));
-      };
-      source.addEventListener(type, listener);
-      listeners.push([type, listener]);
-    }
+  const status = useSyncExternalStore(
+    hub.subscribeStatus,
+    hub.getStatus,
+    () => "connecting" as const,
+  );
 
-    return () => {
-      for (const [type, listener] of listeners) {
-        source.removeEventListener(type, listener);
-      }
-      source.close();
-    };
-  }, [onEvent, types, url]);
-
-  return state;
+  return { status };
 }

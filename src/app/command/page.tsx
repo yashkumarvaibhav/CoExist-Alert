@@ -1,11 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import {
+  ActiveCascades,
+  type CascadeAlertSeed,
+  type CascadeEventSeed,
+  type CascadeResponseSeed,
+} from "@/components/command/active-cascades";
+import {
+  HealthBoard,
+  type OpenOutageSeed,
+} from "@/components/command/health-board";
 import { KpiStrip, type KpiTileData } from "@/components/command/kpi-strip";
 import { LiveFeed, type FeedItem } from "@/components/command/live-feed";
 import { LiveMap } from "@/components/command/live-map";
-import { NODE_KIND_LABELS, NodeKindIcon } from "@/components/node-kind-icon";
-import { StatusChip } from "@/components/status-chip";
 import { getRuntimeRepositories } from "@/db/runtime";
 import {
   leadTimeStats,
@@ -13,18 +21,15 @@ import {
   uptimePct,
   type Metric,
 } from "@/domain/metrics";
-import { formatIstTime } from "@/lib/time";
+import { bucketMeans } from "@/lib/sparkline";
 
 export const metadata: Metadata = {
   title: "Command dashboard — CoExist Alert",
 };
 
 const DAY_MS = 24 * 60 * 60 * 1_000;
+const SPARKLINE_BUCKET_MINUTES = 30;
 const INSUFFICIENT = { value: "n < 5", sub: "not enough data yet", insufficient: true };
-
-function pct(value: number | null): string {
-  return value === null ? "—" : `${Math.round(value)}%`;
-}
 
 function computeKpiTiles(
   repos: ReturnType<typeof getRuntimeRepositories>,
@@ -138,6 +143,47 @@ function buildFeedSeed(
   return items;
 }
 
+function buildHealthSeed(
+  repos: ReturnType<typeof getRuntimeRepositories>,
+  nodes: ReturnType<ReturnType<typeof getRuntimeRepositories>["nodes"]["list"]>,
+): {
+  sparklines: Record<string, Array<number | null>>;
+  openOutages: OpenOutageSeed[];
+} {
+  const nowMs = Date.now();
+  const window = {
+    from: new Date(nowMs - DAY_MS).toISOString(),
+    to: new Date(nowMs).toISOString(),
+    bucketMinutes: SPARKLINE_BUCKET_MINUTES,
+  };
+  const sparklines = Object.fromEntries(
+    nodes.map((node) => [
+      node.id,
+      bucketMeans(
+        repos.heartbeats
+          .listForNodeSince(node.id, window.from)
+          .map((heartbeat) => ({
+            at: heartbeat.at,
+            value: heartbeat.linkQualityPct,
+          })),
+        window,
+      ),
+    ]),
+  );
+  const openOutages: OpenOutageSeed[] = [];
+  for (const node of nodes) {
+    const outage = repos.outages.findOpenForNode(node.id);
+    if (outage !== null) {
+      openOutages.push({
+        id: outage.id,
+        nodeId: outage.nodeId,
+        startedAt: outage.startedAt,
+      });
+    }
+  }
+  return { sparklines, openOutages };
+}
+
 export default function CommandDashboardPage() {
   const repos = getRuntimeRepositories();
   const nodes = repos.nodes.list();
@@ -146,6 +192,47 @@ export default function CommandDashboardPage() {
   const feedSeed = buildFeedSeed(repos);
   const nodeNames = Object.fromEntries(
     nodes.map((node) => [node.id, node.name]),
+  );
+
+  // Health board: 24h link-quality sparklines + open outages per node.
+  const { sparklines, openOutages } = buildHealthSeed(repos, nodes);
+
+  // Active cascades: confirmed/responding events with alerts + responses.
+  const settings = repos.settings.get();
+  const activeEvents = openEvents.filter(
+    (event) => event.state === "confirmed" || event.state === "responding",
+  );
+  const cascadeEvents: CascadeEventSeed[] = activeEvents.map((event) => ({
+    id: event.id,
+    nodeId: event.nodeId,
+    state: event.state,
+    speciesLabel: event.speciesLabel,
+    openedAt: event.openedAt,
+    confirmedAt: event.confirmedAt,
+  }));
+  const cascadeAlerts: CascadeAlertSeed[] = activeEvents.flatMap((event) =>
+    repos.alerts.listForEvent(event.id).map((alert) => ({
+      id: alert.id,
+      eventId: event.id,
+      tier: alert.tier,
+      channel: alert.channel,
+      status: alert.status,
+      queuedAt: alert.queuedAt,
+      isLive: alert.isLive,
+    })),
+  );
+  const cascadeResponses: CascadeResponseSeed[] = activeEvents.flatMap(
+    (event) =>
+      repos.responses.listForEvent(event.id).map((response) => ({
+        id: response.id,
+        eventId: event.id,
+        responderId: response.responderId,
+        action: response.action,
+        at: response.at,
+      })),
+  );
+  const responderNames = Object.fromEntries(
+    repos.responders.list().map((responder) => [responder.id, responder.name]),
   );
 
   return (
@@ -207,46 +294,29 @@ export default function CommandDashboardPage() {
         </section>
       </div>
 
-      <section
-        aria-labelledby="network-heading"
-        className="rounded-lg border border-line bg-raised"
-      >
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3">
-          <h2 id="network-heading" className="text-base font-medium">
-            Sensor network
-          </h2>
-          <span className="tnum text-xs text-faint">
-            {nodes.length} nodes · {openEvents.length} open{" "}
-            {openEvents.length === 1 ? "event" : "events"}
-          </span>
-        </div>
-        <ul className="divide-y divide-line">
-          {nodes.map((node) => (
-            <li key={node.id}>
-              <Link
-                href={`/command/nodes/${node.id}`}
-                className="flex min-h-11 flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-3 transition-colors hover:bg-hover"
-              >
-                <NodeKindIcon kind={node.kind} className="size-4 shrink-0 text-muted" />
-                <span className="font-medium text-ink">{node.name}</span>
-                <span className="text-xs text-faint">
-                  {NODE_KIND_LABELS[node.kind]}
-                </span>
-                <span className="ml-auto flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                  <span className="tnum text-xs text-muted">
-                    battery {pct(node.batteryPct)} · link {pct(node.linkQualityPct)} ·
-                    beat{" "}
-                    {node.lastHeartbeatAt === null
-                      ? "never"
-                      : formatIstTime(node.lastHeartbeatAt)}
-                  </span>
-                  <StatusChip status={node.status} />
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </section>
+      <div className="grid gap-6 xl:grid-cols-2">
+        <HealthBoard
+          initialNodes={nodes.map((node) => ({
+            id: node.id,
+            name: node.name,
+            kind: node.kind,
+            status: node.status,
+            batteryPct: node.batteryPct,
+            linkQualityPct: node.linkQualityPct,
+            lastHeartbeatAt: node.lastHeartbeatAt,
+          }))}
+          sparklines={sparklines}
+          initialOpenOutages={openOutages}
+        />
+        <ActiveCascades
+          initialEvents={cascadeEvents}
+          initialAlerts={cascadeAlerts}
+          initialResponses={cascadeResponses}
+          nodeNames={nodeNames}
+          responderNames={responderNames}
+          escalationTimeoutS={settings.escalationTimeoutS}
+        />
+      </div>
     </div>
   );
 }

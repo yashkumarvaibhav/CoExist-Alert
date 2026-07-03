@@ -8,6 +8,7 @@ import { BuildStamp } from "@/components/build-stamp";
 import { CommandNav, type NavNode } from "@/components/command/command-nav";
 import { LiveStatus } from "@/components/command/live-status";
 import { RoleSwitcher } from "@/components/command/role-switcher";
+import { LiveStreamProvider } from "@/components/live-stream-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { APP_NAME } from "@/lib/app-info";
 
@@ -60,6 +61,7 @@ export function CommandShell({
   }
 
   return (
+    <LiveStreamProvider>
     <div className="flex min-h-screen bg-page">
       <a
         href="#main"
@@ -174,5 +176,6 @@ export function CommandShell({
         </div>
       )}
     </div>
+    </LiveStreamProvider>
   );
 }

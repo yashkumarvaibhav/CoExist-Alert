@@ -2,12 +2,13 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useCallback, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import { StatusChip } from "@/components/status-chip";
 import type { EventState } from "@/domain/types";
 import { useLiveStream } from "@/hooks/use-live-stream";
-import { formatIstTime } from "@/lib/time";
+import { useNowMs } from "@/hooks/use-now";
+import { formatElapsed, formatIstTime } from "@/lib/time";
 import type { FieldStreamEvent, StreamEventType } from "@/stream/events";
 
 /**
@@ -104,36 +105,6 @@ function toFeedItem(streamEvent: FieldStreamEvent): FeedItem | null {
     default:
       return null;
   }
-}
-
-// Shared 1 Hz tick for elapsed counters — hydration-safe (server sees null).
-const tickListeners = new Set<() => void>();
-let tickTimer: ReturnType<typeof setInterval> | null = null;
-function subscribeTick(onTick: () => void) {
-  tickListeners.add(onTick);
-  tickTimer ??= setInterval(() => {
-    for (const listener of tickListeners) listener();
-  }, 1_000);
-  return () => {
-    tickListeners.delete(onTick);
-    if (tickListeners.size === 0 && tickTimer !== null) {
-      clearInterval(tickTimer);
-      tickTimer = null;
-    }
-  };
-}
-function getNowMs(): number {
-  return Math.floor(Date.now() / 1_000) * 1_000;
-}
-function useNowMs(): number | null {
-  return useSyncExternalStore(subscribeTick, getNowMs, () => null);
-}
-
-function formatElapsed(totalSeconds: number): string {
-  const s = Math.max(0, Math.floor(totalSeconds));
-  if (s < 60) return `${s}s`;
-  if (s < 3_600) return `${Math.floor(s / 60)}m ${s % 60}s`;
-  return `${Math.floor(s / 3_600)}h ${Math.floor((s % 3_600) / 60)}m`;
 }
 
 function ElapsedSince({ iso }: { iso: string }) {

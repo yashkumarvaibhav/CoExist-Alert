@@ -85,6 +85,15 @@ export function createRepositories(db: AppDatabase) {
           .orderBy(asc(heartbeats.at))
           .all();
       },
+
+      listForNodeSince(nodeId: string, fromIso: string): Heartbeat[] {
+        return db
+          .select()
+          .from(heartbeats)
+          .where(and(eq(heartbeats.nodeId, nodeId), gte(heartbeats.at, fromIso)))
+          .orderBy(asc(heartbeats.at))
+          .all();
+      },
     },
 
     signals: {

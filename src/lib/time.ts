@@ -40,3 +40,17 @@ export function formatIstDateTime(iso: string): string {
   const ist = toIst(iso);
   return `${pad(ist.getUTCDate())} ${MONTHS[ist.getUTCMonth()]} ${ist.getUTCFullYear()}, ${pad(ist.getUTCHours())}:${pad(ist.getUTCMinutes())}`;
 }
+
+/** Compact duration: "42s", "3m 12s", "1h 4m". Clamps negatives to 0s. */
+export function formatElapsed(totalSeconds: number): string {
+  const s = Math.max(0, Math.floor(totalSeconds));
+  if (s < 60) return `${s}s`;
+  if (s < 3_600) return `${Math.floor(s / 60)}m ${s % 60}s`;
+  return `${Math.floor(s / 3_600)}h ${Math.floor((s % 3_600) / 60)}m`;
+}
+
+/** Countdown clock: "1:07", "0:09". Clamps negatives to 0:00. */
+export function formatCountdown(totalSeconds: number): string {
+  const s = Math.max(0, Math.ceil(totalSeconds));
+  return `${Math.floor(s / 60)}:${pad(s % 60)}`;
+}

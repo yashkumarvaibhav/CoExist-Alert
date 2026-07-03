@@ -310,6 +310,21 @@ describe("database repositories", () => {
       repos.outages.insert(makeOutage("out-1", "2026-07-01T00:00:00.000Z"));
       repos.outages.insert(makeOutage("out-2", "2026-07-02T00:00:00.000Z"));
       expect(repos.outages.listRecent(1).map((o) => o.id)).toEqual(["out-2"]);
+
+      for (let i = 0; i < 3; i += 1) {
+        repos.heartbeats.insert({
+          id: `hb-${i}`,
+          nodeId: "n1",
+          at: `2026-07-0${i + 1}T12:00:00.000Z`,
+          batteryPct: 80,
+          linkQualityPct: 90,
+        });
+      }
+      expect(
+        repos.heartbeats
+          .listForNodeSince("n1", "2026-07-02T00:00:00.000Z")
+          .map((h) => h.id),
+      ).toEqual(["hb-1", "hb-2"]);
     } finally {
       database.close();
     }
