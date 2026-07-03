@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("placeholder page renders the wordmark and pitch", async ({ page }) => {
+test("landing page renders the wordmark and pitch", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByText("CoExist Alert").first()).toBeVisible();
   await expect(page.getByRole("heading", { level: 1 })).toContainText(
