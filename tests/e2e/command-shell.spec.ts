@@ -19,9 +19,9 @@ test("top bar renders wordmark, live status, role switcher and theme toggle", as
   await expect(
     page.getByRole("heading", { name: "Command dashboard" }),
   ).toBeVisible();
-  await expect(page.getByRole("status")).toContainText("Live", {
-    timeout: 15_000,
-  });
+  await expect(
+    page.getByRole("status", { name: "Live data stream" }),
+  ).toContainText("Live", { timeout: 15_000 });
   await expect(
     page.getByRole("combobox", { name: "Switch role view" }),
   ).toBeVisible();

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { LiveMap } from "@/components/command/live-map";
 import { NODE_KIND_LABELS, NodeKindIcon } from "@/components/node-kind-icon";
 import { StatusChip } from "@/components/status-chip";
 import { getRuntimeRepositories } from "@/db/runtime";
@@ -28,6 +29,34 @@ export default function CommandDashboardPage() {
           Live field state for the Dooars corridor pilot — all times IST.
         </p>
       </header>
+
+      <section
+        aria-label="Live network map"
+        className="overflow-hidden rounded-lg border border-line bg-raised"
+      >
+        <div className="h-[46vh] min-h-80">
+          <LiveMap
+            nodes={nodes.map((node) => ({
+              id: node.id,
+              name: node.name,
+              kind: node.kind,
+              lat: node.lat,
+              lng: node.lng,
+              geofenceRadiusM: node.geofenceRadiusM,
+              status: node.status,
+              batteryPct: node.batteryPct,
+              linkQualityPct: node.linkQualityPct,
+              lastHeartbeatAt: node.lastHeartbeatAt,
+            }))}
+            activeEvents={openEvents
+              .filter(
+                (event) =>
+                  event.state === "confirmed" || event.state === "responding",
+              )
+              .map((event) => ({ id: event.id, nodeId: event.nodeId }))}
+          />
+        </div>
+      </section>
 
       <section
         aria-labelledby="network-heading"

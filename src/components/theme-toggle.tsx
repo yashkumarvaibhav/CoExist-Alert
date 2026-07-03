@@ -1,46 +1,12 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
-
-type Theme = "light" | "dark";
-
-const listeners = new Set<() => void>();
-
-function subscribe(onChange: () => void) {
-  const media = window.matchMedia("(prefers-color-scheme: dark)");
-  media.addEventListener("change", onChange);
-  listeners.add(onChange);
-  return () => {
-    media.removeEventListener("change", onChange);
-    listeners.delete(onChange);
-  };
-}
-
-function getTheme(): Theme {
-  const forced = document.documentElement.dataset.theme;
-  if (forced === "dark" || forced === "light") return forced;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches
-    ? "dark"
-    : "light";
-}
-
-// Server renders no theme; the client resolves it on hydration.
-function getServerTheme(): Theme | null {
-  return null;
-}
+import { getTheme, setTheme, useTheme } from "@/hooks/use-theme";
 
 export function ThemeToggle() {
-  const theme = useSyncExternalStore(subscribe, getTheme, getServerTheme);
+  const theme = useTheme();
 
   function toggle() {
-    const next: Theme = (theme ?? getTheme()) === "dark" ? "light" : "dark";
-    document.documentElement.dataset.theme = next;
-    try {
-      localStorage.setItem("theme", next);
-    } catch {
-      // localStorage unavailable (private mode) — theme still applies for the session
-    }
-    for (const notify of listeners) notify();
+    setTheme((theme ?? getTheme()) === "dark" ? "light" : "dark");
   }
 
   const label =

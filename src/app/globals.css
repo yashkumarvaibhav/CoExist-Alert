@@ -205,3 +205,103 @@ h3 { font-size: 1.1rem; }
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Leaflet map — identity-styled chrome. Markers are the one saturated
+   element; status color rides the ring, the glyph stays ink. */
+.leaflet-container {
+  background: var(--sidebar);
+  font-family: var(--font-sans);
+}
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: var(--raised);
+  color: var(--body);
+  box-shadow: var(--shadow);
+}
+.leaflet-popup-content-wrapper {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+}
+.leaflet-container .leaflet-control-attribution {
+  background: color-mix(in srgb, var(--page) 82%, transparent);
+  color: var(--faint);
+}
+.leaflet-container .leaflet-control-attribution a {
+  color: var(--accent);
+}
+.leaflet-bar a {
+  background: var(--raised);
+  color: var(--ink);
+  border-bottom-color: var(--line);
+}
+.leaflet-bar a:hover,
+.leaflet-bar a:focus {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+.coexist-marker {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9999px;
+  background: var(--raised);
+  border: 3px solid var(--marker-status, var(--muted));
+  box-shadow: var(--shadow-sm);
+  color: var(--ink);
+}
+.coexist-marker svg {
+  width: 15px;
+  height: 15px;
+}
+.coexist-marker--healthy { --marker-status: var(--status-healthy); }
+.coexist-marker--degraded { --marker-status: var(--status-degraded); }
+.coexist-marker--offline { --marker-status: var(--status-offline); }
+.coexist-marker--pulse::after {
+  content: "";
+  position: absolute;
+  inset: -9px;
+  border-radius: 9999px;
+  border: 2px solid var(--status-confirmed);
+  animation: coexist-marker-pulse 1.6s ease-out infinite;
+}
+@keyframes coexist-marker-pulse {
+  0% { transform: scale(0.65); opacity: 0.9; }
+  70% { opacity: 0.35; }
+  100% { transform: scale(1.15); opacity: 0; }
+}
+
+.coexist-geofence {
+  stroke: var(--line-strong);
+  fill: var(--accent);
+  fill-opacity: 0.06;
+}
+
+.coexist-popup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 190px;
+  font-size: 13px;
+}
+.coexist-popup__title {
+  font-family: var(--font-serif);
+  font-size: 16px;
+  color: var(--ink);
+  margin: 0 0 2px;
+}
+.coexist-popup__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+  color: var(--muted);
+}
+.coexist-popup__link {
+  margin-top: 4px;
+  color: var(--accent);
+  font-weight: 600;
+}
