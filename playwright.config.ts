@@ -17,15 +17,16 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   projects: [
-    { name: "desktop-light", use: { ...desktop, colorScheme: "light" }, testIgnore: /guard-flow\.spec\.ts/ },
-    { name: "desktop-dark", use: { ...desktop, colorScheme: "dark" }, testIgnore: /guard-flow\.spec\.ts/ },
-    { name: "mobile-light", use: { ...mobile, colorScheme: "light" }, testIgnore: /guard-flow\.spec\.ts/ },
-    { name: "mobile-dark", use: { ...mobile, colorScheme: "dark" }, testIgnore: /guard-flow\.spec\.ts/ },
+    { name: "desktop-light", use: { ...desktop, colorScheme: "light" }, testIgnore: /flows\.spec\.ts/ },
+    { name: "desktop-dark", use: { ...desktop, colorScheme: "dark" }, testIgnore: /flows\.spec\.ts/ },
+    { name: "mobile-light", use: { ...mobile, colorScheme: "light" }, testIgnore: /flows\.spec\.ts/ },
+    { name: "mobile-dark", use: { ...mobile, colorScheme: "dark" }, testIgnore: /flows\.spec\.ts/ },
     {
-      // The guard acknowledge journey mutates shared world state, so it runs
-      // alone at the spec's exact 360×740 target, serialized after
-      // desktop-light (home of the other world-mutating scenario tests).
-      name: "guard-flow",
+      // The persona journeys (guard + rail-control acknowledge) mutate shared
+      // world state, so they run serially in one file at the guard spec's
+      // exact 360×740 target, serialized after desktop-light (home of the
+      // other world-mutating scenario tests).
+      name: "flows",
       use: {
         ...devices["Desktop Chrome"],
         viewport: { width: 360, height: 740 },
@@ -33,7 +34,7 @@ export default defineConfig({
         hasTouch: true,
         colorScheme: "light",
       },
-      testMatch: /guard-flow\.spec\.ts/,
+      testMatch: /flows\.spec\.ts/,
       dependencies: ["desktop-light"],
     },
   ],

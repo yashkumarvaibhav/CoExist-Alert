@@ -9,8 +9,15 @@ import { APP_NAME } from "@/lib/app-info";
 /**
  * Minimal chrome for the standalone persona surfaces (/guard, /channels,
  * /demo): wordmark, role switcher and theme toggle — no command sidebar.
+ * `wide` relaxes the single-column width for multi-panel demo surfaces.
  */
-export function StandaloneShell({ children }: { children: React.ReactNode }) {
+export function StandaloneShell({
+  children,
+  wide = false,
+}: {
+  children: React.ReactNode;
+  wide?: boolean;
+}) {
   return (
     <div className="flex min-h-screen flex-col bg-page">
       <a
@@ -45,7 +52,9 @@ export function StandaloneShell({ children }: { children: React.ReactNode }) {
       <main
         id="main"
         tabIndex={-1}
-        className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-6 px-4 py-8 sm:px-6"
+        className={`mx-auto flex w-full flex-1 flex-col gap-6 px-4 py-8 sm:px-6 ${
+          wide ? "max-w-6xl" : "max-w-xl"
+        }`}
       >
         {children}
       </main>

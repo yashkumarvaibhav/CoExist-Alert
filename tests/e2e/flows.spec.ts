@@ -1,9 +1,10 @@
 import { expect, test } from "@playwright/test";
 
-// The S7 acknowledge journey — mutates shared world state (confirms and
-// resolves an event on n1), so it runs only in the dedicated "guard-flow"
-// project, which depends on desktop-light and therefore never overlaps the
-// scenario tests in dashboard-live.spec.ts.
+// World-mutating persona journeys (S7 guard acknowledge, S8 rail-control
+// acknowledge). They confirm and resolve real events, so they run serially in
+// this one file inside the dedicated "flows" project, which depends on
+// desktop-light and therefore never overlaps the scenario tests in
+// dashboard-live.spec.ts.
 
 test.describe.configure({ mode: "default" });
 
@@ -102,4 +103,75 @@ test("incoming takeover: acknowledge cancels escalation, stepper records to reso
   await expect(historyItem).toBeVisible();
   await expect(historyItem).toContainText(/Ack \+\d+s/);
   await expect(historyItem).toContainText(/Resolved \+/);
+});
+
+test("rail advisory: acknowledge records the control-room response", async ({
+  page,
+  request,
+}) => {
+  await page.goto("/channels");
+  await expect(
+    page.getByRole("heading", { name: "Rail control strip" }),
+  ).toBeVisible();
+
+  // Self-heal from a crashed earlier run: resolve any advisory whose event
+  // is still open (its row shows an Acknowledge button).
+  const openEventIds = await page
+    .locator("li[data-advisory-event-id]")
+    .evaluateAll((rows) =>
+      rows
+        .filter((row) => row.querySelector("button") !== null)
+        .map((row) => row.getAttribute("data-advisory-event-id")),
+    );
+  for (const openId of openEventIds) {
+    if (openId === null) continue;
+    await request.post(`/api/events/${openId}/respond`, {
+      data: { responderId: "nfr-chalsa-control", action: "resolved" },
+    });
+  }
+  if (openEventIds.length > 0) await page.reload();
+
+  // A high-confidence detection at the rail crossing confirms immediately
+  // and dispatches the tier-1 cascade, control room included.
+  const trigger = await request.post("/api/ingest/detection", {
+    data: {
+      nodeId: "n2",
+      at: new Date().toISOString(),
+      source: "camera",
+      classification: "elephant_class",
+      confidence: 0.9,
+      snapshotRef: "/demo-snapshots/n2-camera.svg",
+    },
+  });
+  expect(trigger.status()).toBe(202);
+  const { eventId } = (await trigger.json()) as { eventId: string };
+
+  const row = page.locator(`li[data-advisory-event-id="${eventId}"]`);
+  await expect(row).toBeVisible({ timeout: 10_000 });
+  await expect(row).toContainText("SLOW/STOP");
+  await expect(row).toContainText("Rail Crossing KM-47");
+
+  // Targeting proof, live: covered hamlets receive the card, the distant
+  // hamlet stays visibly silent during the same cascade.
+  const chalsa = page.locator('[data-zone-id="zone-chalsa-basti"]');
+  await expect(chalsa.getByText(/alert$/).first()).toBeVisible({
+    timeout: 10_000,
+  });
+  const distant = page.locator('[data-zone-id="zone-distant-market"]');
+  await expect(
+    distant.getByText("Outside geofence — not alerted"),
+  ).toBeVisible();
+  await expect(distant.locator("li")).toHaveCount(0);
+
+  await row.getByRole("button", { name: "Acknowledge advisory" }).click();
+  await expect(
+    row.getByText(/ACK \d{2}:\d{2}:\d{2} IST — NFR Section Control - Chalsa/),
+  ).toBeVisible();
+  await expect(row.getByRole("button")).toHaveCount(0);
+
+  // Leave the world clean for whatever runs next.
+  const cleanup = await request.post(`/api/events/${eventId}/respond`, {
+    data: { responderId: "nfr-chalsa-control", action: "resolved" },
+  });
+  expect(cleanup.ok()).toBeTruthy();
 });
