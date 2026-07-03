@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { createPortal } from "react-dom";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 
 import {
@@ -150,6 +151,114 @@ export function SearchPalette({ items }: { items: SearchItem[] }) {
 
   let renderIndex = -1;
 
+  const palette =
+    open && typeof document !== "undefined"
+      ? createPortal(
+          <div className="search-palette-overlay fixed inset-0 flex items-start justify-center p-4 pt-[10vh] sm:pt-[14vh]">
+            <div
+              aria-hidden="true"
+              onClick={closePalette}
+              className="absolute inset-0 bg-black/40"
+            />
+            <div
+              ref={dialogRef}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Search command console"
+              onKeyDown={onDialogKeyDown}
+              className="search-palette-panel relative flex max-h-[70vh] w-full max-w-xl flex-col overflow-hidden rounded-lg border border-line bg-raised shadow-lg"
+            >
+              <div className="search-palette-input-row flex items-center gap-2 border-b border-line px-3">
+                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-faint">
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="m20 20-3.5-3.5" />
+                </svg>
+                <input
+                  ref={inputRef}
+                  type="text"
+                  role="combobox"
+                  aria-expanded="true"
+                  aria-controls={listboxId}
+                  aria-activedescendant={flat.length > 0 ? optionId(activeIndex) : undefined}
+                  aria-label="Search screens, nodes and events"
+                  placeholder="Search screens, nodes, events…"
+                  value={query}
+                  autoComplete="off"
+                  spellCheck={false}
+                  onChange={(event) => {
+                    setQuery(event.target.value);
+                    setActiveIndex(0);
+                  }}
+                  onKeyDown={onInputKeyDown}
+                  className="search-palette-input min-h-12 flex-1 bg-transparent py-3 text-sm text-ink outline-none placeholder:text-faint"
+                />
+                <kbd className="hidden shrink-0 rounded border border-line bg-sidebar px-1.5 py-0.5 font-sans text-[10px] font-medium text-faint sm:inline">
+                  Esc
+                </kbd>
+              </div>
+
+              <div ref={listRef} id={listboxId} role="listbox" aria-label="Search results" className="search-palette-results min-h-0 flex-1 overflow-y-auto bg-raised p-2">
+                {flat.length === 0 ? (
+                  <p className="px-3 py-8 text-center text-sm text-muted">
+                    No matches — try a node or species name.
+                  </p>
+                ) : (
+                  results.map((group) => (
+                    <div
+                      key={group.group}
+                      role="group"
+                      aria-label={group.group}
+                      className="search-palette-group flex flex-col"
+                    >
+                      <p className="search-palette-heading px-2 pb-1 pt-3 text-[11px] font-medium uppercase tracking-[0.12em] text-faint">
+                        {group.group}
+                      </p>
+                      {group.items.map((item) => {
+                        renderIndex += 1;
+                        const index = renderIndex;
+                        const active = index === activeIndex;
+                        return (
+                          <div
+                            key={item.id}
+                            id={optionId(index)}
+                            role="option"
+                            aria-selected={active}
+                            onMouseMove={() => setActiveIndex(index)}
+                            onClick={() => selectItem(item)}
+                            className={`search-palette-option flex cursor-pointer items-center justify-between gap-3 rounded-md px-2 py-2 text-sm ${
+                              active ? "bg-accent-soft text-ink" : "text-body"
+                            }`}
+                          >
+                            <span className="min-w-0 flex-1 truncate">
+                              {item.label}
+                              {item.hint && (
+                                <span className="ml-2 text-xs text-muted">{item.hint}</span>
+                              )}
+                            </span>
+                            {item.href && (
+                              <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-faint">
+                                <path d="M7 7h10v10M7 17 17 7" />
+                              </svg>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <p aria-live="polite" className="sr-only">
+                {flat.length === 0
+                  ? "No results"
+                  : `${flat.length} result${flat.length === 1 ? "" : "s"}`}
+              </p>
+            </div>
+          </div>,
+          document.body,
+        )
+      : null;
+
   return (
     <>
       <button
@@ -170,109 +279,7 @@ export function SearchPalette({ items }: { items: SearchItem[] }) {
         </kbd>
       </button>
 
-      {open && (
-        <div className="fixed inset-0 z-[2000] flex items-start justify-center p-4 pt-[10vh] sm:pt-[14vh]">
-          <div
-            aria-hidden="true"
-            onClick={closePalette}
-            className="absolute inset-0 bg-black/40"
-          />
-          <div
-            ref={dialogRef}
-            role="dialog"
-            aria-modal="true"
-            aria-label="Search command console"
-            onKeyDown={onDialogKeyDown}
-            className="relative flex max-h-[70vh] w-full max-w-xl flex-col overflow-hidden rounded-lg border border-line bg-raised shadow-lg"
-          >
-            <div className="flex items-center gap-2 border-b border-line px-3">
-              <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-faint">
-                <circle cx="11" cy="11" r="7" />
-                <path d="m20 20-3.5-3.5" />
-              </svg>
-              <input
-                ref={inputRef}
-                type="text"
-                role="combobox"
-                aria-expanded="true"
-                aria-controls={listboxId}
-                aria-activedescendant={flat.length > 0 ? optionId(activeIndex) : undefined}
-                aria-label="Search screens, nodes and events"
-                placeholder="Search screens, nodes, events…"
-                value={query}
-                autoComplete="off"
-                spellCheck={false}
-                onChange={(event) => {
-                  setQuery(event.target.value);
-                  setActiveIndex(0);
-                }}
-                onKeyDown={onInputKeyDown}
-                className="min-h-12 flex-1 bg-transparent py-3 text-sm text-ink outline-none placeholder:text-faint"
-              />
-              <kbd className="hidden shrink-0 rounded border border-line bg-sidebar px-1.5 py-0.5 font-sans text-[10px] font-medium text-faint sm:inline">
-                Esc
-              </kbd>
-            </div>
-
-            <div ref={listRef} id={listboxId} role="listbox" aria-label="Search results" className="min-h-0 flex-1 overflow-y-auto bg-raised p-2">
-              {flat.length === 0 ? (
-                <p className="px-3 py-8 text-center text-sm text-muted">
-                  No matches — try a node or species name.
-                </p>
-              ) : (
-                results.map((group) => (
-                  <div
-                    key={group.group}
-                    role="group"
-                    aria-label={group.group}
-                    className="flex flex-col"
-                  >
-                    <p className="px-2 pb-1 pt-3 text-[11px] font-medium uppercase tracking-[0.12em] text-faint">
-                      {group.group}
-                    </p>
-                    {group.items.map((item) => {
-                      renderIndex += 1;
-                      const index = renderIndex;
-                      const active = index === activeIndex;
-                      return (
-                        <div
-                          key={item.id}
-                          id={optionId(index)}
-                          role="option"
-                          aria-selected={active}
-                          onMouseMove={() => setActiveIndex(index)}
-                          onClick={() => selectItem(item)}
-                          className={`flex cursor-pointer items-center justify-between gap-3 rounded-md px-2 py-2 text-sm ${
-                            active ? "bg-accent-soft text-ink" : "text-body"
-                          }`}
-                        >
-                          <span className="min-w-0 flex-1 truncate">
-                            {item.label}
-                            {item.hint && (
-                              <span className="ml-2 text-xs text-muted">{item.hint}</span>
-                            )}
-                          </span>
-                          {item.href && (
-                            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-faint">
-                              <path d="M7 7h10v10M7 17 17 7" />
-                            </svg>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ))
-              )}
-            </div>
-
-            <p aria-live="polite" className="sr-only">
-              {flat.length === 0
-                ? "No results"
-                : `${flat.length} result${flat.length === 1 ? "" : "s"}`}
-            </p>
-          </div>
-        </div>
-      )}
+      {palette}
     </>
   );
 }

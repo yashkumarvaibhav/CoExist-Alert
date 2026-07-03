@@ -302,6 +302,48 @@ h3 { font-size: 1.1rem; }
   color: var(--ink);
 }
 
+/* Command palette: keep the result surface opaque above Leaflet's composited
+   tile panes. The focused input uses an inset ring so the global focus outline
+   cannot spill over the rounded modal border. */
+.search-palette-overlay {
+  z-index: 2147483000;
+  isolation: isolate;
+}
+.search-palette-panel {
+  isolation: isolate;
+  contain: paint;
+  background: var(--raised);
+  transform: translateZ(0);
+}
+.search-palette-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  background: var(--raised);
+}
+.search-palette-panel > * {
+  position: relative;
+  z-index: 1;
+}
+.search-palette-input-row,
+.search-palette-results,
+.search-palette-group,
+.search-palette-heading,
+.search-palette-option {
+  background: var(--raised);
+}
+.search-palette-input:focus-visible {
+  outline: none;
+}
+.search-palette-input-row:focus-within {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+.search-palette-option[aria-selected="true"] {
+  background: var(--accent-soft);
+}
+
 .coexist-marker {
   position: relative;
   display: flex;
