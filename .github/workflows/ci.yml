@@ -32,6 +32,9 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Seed demo database
+        run: npm run setup
+
       - name: Install Playwright chromium
         run: npx playwright install --with-deps chromium
 
