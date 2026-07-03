@@ -18,6 +18,18 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_BUILD_SHA: buildSha(),
     NEXT_PUBLIC_BUILD_TIME: new Date().toISOString(),
   },
+  // Demo snapshot artwork is iterated during the build and is tiny, so serve it
+  // with must-revalidate: browsers re-check on every load (cheap 304s) and pick
+  // up a corrected asset on the next reload instead of holding a stale copy for
+  // the default static-asset cache lifetime.
+  async headers() {
+    return [
+      {
+        source: "/demo-snapshots/:path*",
+        headers: [{ key: "Cache-Control", value: "no-cache, must-revalidate" }],
+      },
+    ];
+  },
 };
 
 export default nextConfig;
