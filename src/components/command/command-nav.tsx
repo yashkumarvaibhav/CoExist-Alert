@@ -12,10 +12,55 @@ export interface NavNode {
   kind: NodeKind;
 }
 
+/** Console glyphs matching the stroke-only node icons: map / list / chart. */
+function ConsoleIcon({
+  name,
+  className,
+}: {
+  name: "dashboard" | "events" | "analytics";
+  className?: string;
+}) {
+  const shared = {
+    "aria-hidden": true,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    className,
+  } as const;
+
+  switch (name) {
+    case "dashboard":
+      return (
+        <svg {...shared}>
+          <rect x="3.5" y="3.5" width="7" height="7" rx="1.5" />
+          <rect x="13.5" y="3.5" width="7" height="7" rx="1.5" />
+          <rect x="3.5" y="13.5" width="7" height="7" rx="1.5" />
+          <rect x="13.5" y="13.5" width="7" height="7" rx="1.5" />
+        </svg>
+      );
+    case "events":
+      return (
+        <svg {...shared}>
+          <path d="M8.5 6h12M8.5 12h12M8.5 18h12" />
+          <path d="M3.5 6h.01M3.5 12h.01M3.5 18h.01" />
+        </svg>
+      );
+    case "analytics":
+      return (
+        <svg {...shared}>
+          <path d="M4 20.5V15M10 20.5V9.5M16 20.5V12M22 20.5V5.5" transform="translate(-1 0)" />
+        </svg>
+      );
+  }
+}
+
 const CONSOLE_LINKS = [
-  { href: "/command", label: "Dashboard", exact: true },
-  { href: "/command/events", label: "Events", exact: false },
-  { href: "/command/analytics", label: "Analytics", exact: false },
+  { href: "/command", label: "Dashboard", exact: true, icon: "dashboard" },
+  { href: "/command/events", label: "Events", exact: false, icon: "events" },
+  { href: "/command/analytics", label: "Analytics", exact: false, icon: "analytics" },
 ] as const;
 
 function linkClass(active: boolean): string {
@@ -54,7 +99,8 @@ export function CommandNav({
                   onClick={onNavigate}
                   className={linkClass(active)}
                 >
-                  {link.label}
+                  <ConsoleIcon name={link.icon} className="size-4 shrink-0" />
+                  <span className="truncate">{link.label}</span>
                 </Link>
               </li>
             );
