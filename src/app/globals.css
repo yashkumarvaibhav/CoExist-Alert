@@ -281,11 +281,15 @@ h3 { font-size: 1.1rem; }
   border-radius: var(--radius-md);
 }
 .leaflet-container .leaflet-control-attribution {
-  background: color-mix(in srgb, var(--page) 82%, transparent);
-  color: var(--faint);
+  background: var(--raised) !important;
+  border: 1px solid var(--line);
+  color: var(--ink) !important;
 }
 .leaflet-container .leaflet-control-attribution a {
-  color: var(--accent);
+  color: var(--ink) !important;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 .leaflet-bar a {
   background: var(--raised);

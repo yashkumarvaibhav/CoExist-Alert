@@ -19,10 +19,10 @@ const CONSOLE_LINKS = [
 ] as const;
 
 function linkClass(active: boolean): string {
-  return `flex min-h-11 items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors ${
+  return `flex min-h-11 items-center gap-2.5 rounded-md border px-3 py-2 text-sm transition-colors ${
     active
-      ? "bg-accent-soft font-medium text-accent"
-      : "text-body hover:bg-hover hover:text-ink"
+      ? "border-line-strong bg-accent-soft font-semibold text-ink"
+      : "border-transparent text-body hover:bg-hover hover:text-ink"
   }`;
 }
 

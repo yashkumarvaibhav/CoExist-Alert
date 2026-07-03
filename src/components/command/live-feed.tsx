@@ -405,6 +405,7 @@ export function LiveFeed({
     <ol
       aria-live="polite"
       aria-label="Live field activity"
+      tabIndex={0}
       className="flex max-h-[46vh] min-h-80 flex-col gap-2 overflow-y-auto pr-1"
     >
       {sorted.map((item) => (

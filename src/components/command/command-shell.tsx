@@ -106,7 +106,10 @@ export function CommandShell({
             </svg>
           </button>
 
-          <Link href="/command" className="flex min-w-0 items-center gap-2.5">
+          <Link
+            href="/command"
+            className="hidden min-w-0 items-center gap-2.5 sm:flex"
+          >
             <span className="flex size-9 shrink-0 items-center justify-center rounded-sm border border-line bg-white">
               <Image
                 src="/coexist-icon.png"
@@ -122,7 +125,7 @@ export function CommandShell({
             </span>
           </Link>
 
-          <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
+          <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
             <SearchPalette items={searchItems} />
             <LiveStatus />
             <SoundToggle />

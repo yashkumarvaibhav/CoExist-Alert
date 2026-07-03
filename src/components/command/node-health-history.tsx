@@ -254,7 +254,11 @@ export function NodeHealthHistory({
             No blind spots recorded — 100% covered.
           </p>
         ) : (
-          <div className="overflow-x-auto">
+          <div
+            className="overflow-x-auto"
+            tabIndex={0}
+            aria-label="Outage ledger table"
+          >
             <table className="w-full min-w-[620px] text-sm">
               <thead>
                 <tr className="border-y border-line text-left text-xs uppercase tracking-[0.08em] text-faint">

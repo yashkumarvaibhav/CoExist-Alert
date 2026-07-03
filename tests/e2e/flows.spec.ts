@@ -78,7 +78,10 @@ test("incoming takeover: acknowledge cancels escalation, stepper records to reso
   });
 
   // …and visibly cancels on Acknowledge.
-  await card.getByRole("button", { name: "Acknowledge" }).click();
+  const acknowledgeButton = card.getByRole("button", { name: "Acknowledge" });
+  await acknowledgeButton.focus();
+  await expect(acknowledgeButton).toBeFocused();
+  await page.keyboard.press("Enter");
   await expect(
     card.getByText(/Escalation cancelled — acknowledged/),
   ).toBeVisible();
@@ -88,13 +91,19 @@ test("incoming takeover: acknowledge cancels escalation, stepper records to reso
   const steps = card.getByRole("list", { name: "Response steps" });
   await expect(steps.getByText(/\d{2}:\d{2}:\d{2} IST/)).toHaveCount(1);
 
-  await card.getByRole("button", { name: "Mark en route" }).click();
+  const enRouteButton = card.getByRole("button", { name: "Mark en route" });
+  await enRouteButton.focus();
+  await page.keyboard.press("Enter");
   await expect(steps.getByText(/\d{2}:\d{2}:\d{2} IST/)).toHaveCount(2);
 
-  await card.getByRole("button", { name: "Mark on site" }).click();
+  const onSiteButton = card.getByRole("button", { name: "Mark on site" });
+  await onSiteButton.focus();
+  await page.keyboard.press("Enter");
   await expect(steps.getByText(/\d{2}:\d{2}:\d{2} IST/)).toHaveCount(3);
 
-  await card.getByRole("button", { name: "Mark resolved" }).click();
+  const resolvedButton = card.getByRole("button", { name: "Mark resolved" });
+  await resolvedButton.focus();
+  await page.keyboard.press("Enter");
 
   // The console returns to standby and the response time is recorded in the
   // recent-responses ledger.

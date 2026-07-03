@@ -28,7 +28,7 @@ export function RoleSwitcher() {
       <select
         value={current}
         onChange={(event) => router.push(event.target.value)}
-        className="h-11 rounded-md border border-line bg-raised px-2 text-sm text-ink"
+        className="h-11 w-[6.25rem] rounded-md border border-line bg-raised px-2 text-sm text-ink sm:w-auto"
       >
         {ROLE_VIEWS.map((view) => (
           <option key={view.path} value={view.path}>

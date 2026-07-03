@@ -42,8 +42,9 @@ test("typing filters to a node and Enter navigates to it", async ({ page }) => {
 
 test("a query with no matches shows the guidance message", async ({ page }) => {
   await page.goto("/command");
-  await page.keyboard.press("Control+k");
+  await page.getByRole("button", { name: /search.*command palette/i }).click();
   const dialog = page.getByRole("dialog", { name: /search command console/i });
+  await expect(dialog).toBeVisible();
   await dialog.getByRole("combobox").fill("zzzznotathing");
   await expect(dialog.getByText("No matches — try a node or species name.")).toBeVisible();
 });

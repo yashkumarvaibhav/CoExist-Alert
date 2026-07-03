@@ -112,7 +112,11 @@ function SignalsTable({
           No recent signals recorded for this node.
         </p>
       ) : (
-        <div className="overflow-x-auto">
+        <div
+          className="overflow-x-auto"
+          tabIndex={0}
+          aria-label="Recent field signals table"
+        >
           <table className="w-full min-w-[760px] text-sm">
             <thead>
               <tr className="border-b border-line text-left text-xs uppercase tracking-[0.08em] text-faint">

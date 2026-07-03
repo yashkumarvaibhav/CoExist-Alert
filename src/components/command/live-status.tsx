@@ -26,7 +26,7 @@ export function LiveStatus() {
       role="status"
       aria-label="Live data stream"
       title={`Live data stream: ${meta.label.toLowerCase()}`}
-      className="flex h-11 items-center gap-1.5 rounded-md border border-line px-2 text-xs text-muted sm:px-2.5"
+      className="flex h-11 w-8 items-center justify-center gap-1.5 rounded-md border border-line text-xs text-muted sm:w-auto sm:px-2.5"
     >
       <span
         aria-hidden="true"

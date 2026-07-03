@@ -39,7 +39,11 @@ export function StandaloneShell({
         </a>
 
         <header className="flex items-center gap-2 border-b border-line px-4 py-2.5 sm:gap-3 sm:px-6">
-          <Link href="/command" className="flex min-w-0 items-center gap-2.5">
+          <Link
+            href="/command"
+            aria-label={`Open ${APP_NAME} command dashboard`}
+            className="flex min-w-0 items-center gap-2.5"
+          >
             <span className="flex size-9 shrink-0 items-center justify-center rounded-sm border border-line bg-white">
               <Image
                 src="/coexist-icon.png"
