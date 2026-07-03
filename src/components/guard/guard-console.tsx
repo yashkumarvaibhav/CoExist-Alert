@@ -17,8 +17,10 @@ import type {
   NodeStatus,
   ResponseAction,
 } from "@/domain/types";
+import { useAlarm } from "@/hooks/use-alarm";
 import { useLiveStream } from "@/hooks/use-live-stream";
 import { useNowMs } from "@/hooks/use-now";
+import { hasActiveAlarm } from "@/lib/alarm";
 import { deriveResponseProgress, RESPONSE_STEPS } from "@/lib/response-steps";
 import {
   formatCountdown,
@@ -409,6 +411,15 @@ export function GuardConsole({
   );
 
   useLiveStream({ types: GUARD_STREAM_TYPES, onEvent: onStreamEvent });
+
+  // Warning hooter sounds while any assigned-node event is confirmed
+  // (unacknowledged) and stops the moment the responder acknowledges — the
+  // events map is already scoped to this guard's nodes.
+  const alarmActive = useMemo(
+    () => hasActiveAlarm([...events.values()].map((event) => event.state)),
+    [events],
+  );
+  useAlarm(alarmActive);
 
   const respond = useCallback(
     async (eventId: string, action: ResponseAction) => {

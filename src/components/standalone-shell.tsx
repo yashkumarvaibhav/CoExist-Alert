@@ -4,7 +4,6 @@ import Link from "next/link";
 import { BuildStamp } from "@/components/build-stamp";
 import { RoleSwitcher } from "@/components/command/role-switcher";
 import { SoundToggle } from "@/components/command/sound-toggle";
-import { ConfirmedChime } from "@/components/confirmed-chime";
 import { ConnectionBanner } from "@/components/connection-banner";
 import { LiveStreamProvider } from "@/components/live-stream-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -14,9 +13,10 @@ import { APP_NAME } from "@/lib/app-info";
  * Minimal chrome for the standalone persona surfaces (/guard, /channels,
  * /demo): wordmark, role switcher and theme toggle — no command sidebar.
  * `wide` relaxes the single-column width for multi-panel demo surfaces.
- * `sound` shows the confirmed-event chime toggle (Guard only, per spec).
- * Children share one EventSource via the wrapping LiveStreamProvider, which
- * also feeds the reconnect banner.
+ * `sound` shows the warning-alarm toggle; the surface's own console drives the
+ * hooter from its live event state (Guard/Channels). Children share one
+ * EventSource via the wrapping LiveStreamProvider, which also feeds the
+ * reconnect banner.
  */
 export function StandaloneShell({
   children,
@@ -29,7 +29,6 @@ export function StandaloneShell({
 }) {
   return (
     <LiveStreamProvider>
-      {sound && <ConfirmedChime />}
       <div className="flex min-h-screen flex-col bg-page">
         <a
           href="#main"

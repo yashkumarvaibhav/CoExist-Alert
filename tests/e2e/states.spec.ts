@@ -1,16 +1,16 @@
 import { expect, test } from "@playwright/test";
 
-test("command top bar exposes an off-by-default sound toggle that flips on", async ({
+test("command top bar exposes an off-by-default warning-alarm toggle that flips on", async ({
   page,
 }) => {
   await page.goto("/command");
 
-  const toggle = page.getByRole("button", { name: /alert sound/i });
+  const toggle = page.getByRole("button", { name: /warning alarm/i });
   await expect(toggle).toBeVisible();
   await expect(toggle).toHaveAttribute("aria-pressed", "false");
 
   await toggle.click();
-  await expect(page.getByRole("button", { name: /mute .*alert sound/i })).toHaveAttribute(
+  await expect(page.getByRole("button", { name: /mute the warning alarm/i })).toHaveAttribute(
     "aria-pressed",
     "true",
   );

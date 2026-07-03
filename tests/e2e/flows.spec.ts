@@ -9,15 +9,16 @@ import { expect, test } from "@playwright/test";
 test.describe.configure({ mode: "default" });
 
 // Installed via addInitScript: replaces WebAudio with a counting mock so the
-// chime flow is observable without sound hardware.
-function installChimeProbe() {
+// warning-hooter flow is observable without sound hardware. Each hooter blast
+// creates exactly one oscillator, so oscillatorStarts counts blasts.
+function installHooterProbe() {
   const probe = {
     contexts: 0,
     resumes: 0,
     oscillatorStarts: 0,
     oscillatorStops: 0,
   };
-  (window as Window & { __chimeProbe?: typeof probe }).__chimeProbe = probe;
+  (window as Window & { __hooterProbe?: typeof probe }).__hooterProbe = probe;
 
   class MockAudioContext {
     state: AudioContextState = "suspended";
@@ -46,7 +47,7 @@ function installChimeProbe() {
 
     createOscillator() {
       return {
-        type: "sine",
+        type: "sawtooth",
         frequency: { setValueAtTime: () => undefined },
         connect: () => undefined,
         start: () => {
@@ -65,11 +66,19 @@ function installChimeProbe() {
   });
 }
 
-test("sound toggle primes WebAudio and chimes on a new confirmation", async ({
+function blastCount(page: import("@playwright/test").Page): Promise<number> {
+  return page.evaluate(
+    () =>
+      (window as Window & { __hooterProbe?: { oscillatorStarts: number } })
+        .__hooterProbe?.oscillatorStarts ?? 0,
+  );
+}
+
+test("warning hooter repeats while an event is confirmed and stops on acknowledge", async ({
   page,
   request,
 }) => {
-  await page.addInitScript(installChimeProbe);
+  await page.addInitScript(installHooterProbe);
 
   await page.goto("/command");
   await expect(page.getByRole("status", { name: /live data stream/i })).toContainText(
@@ -77,32 +86,24 @@ test("sound toggle primes WebAudio and chimes on a new confirmation", async ({
     { timeout: 10_000 },
   );
 
-  const toggle = page.getByRole("button", { name: /enable confirmed-event alert sound/i });
+  const toggle = page.getByRole("button", { name: /enable the warning alarm/i });
   await toggle.click();
-  await expect(page.getByRole("button", { name: /mute confirmed-event alert sound/i }))
-    .toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: /mute the warning alarm/i })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  // Enabling unlocks WebAudio and sounds one preview blast.
   await expect
     .poll(() =>
       page.evaluate(() => {
         const probe = (window as Window & {
-          __chimeProbe?: { contexts: number; resumes: number };
-        }).__chimeProbe;
+          __hooterProbe?: { contexts: number; resumes: number };
+        }).__hooterProbe;
         return { contexts: probe?.contexts ?? 0, resumes: probe?.resumes ?? 0 };
       }),
     )
     .toEqual({ contexts: 1, resumes: 1 });
-
-  // Enabling plays an audible confirmation (one two-oscillator chime).
-  await expect
-    .poll(() =>
-      page.evaluate(
-        () =>
-          (window as Window & {
-            __chimeProbe?: { oscillatorStarts: number; oscillatorStops: number };
-          }).__chimeProbe ?? { oscillatorStarts: 0, oscillatorStops: 0 },
-      ),
-    )
-    .toMatchObject({ oscillatorStarts: 2, oscillatorStops: 2 });
+  await expect.poll(() => blastCount(page)).toBeGreaterThanOrEqual(1);
 
   const trigger = await request.post("/api/ingest/detection", {
     data: {
@@ -121,18 +122,27 @@ test("sound toggle primes WebAudio and chimes on a new confirmation", async ({
   };
   expect(eventState).toBe("confirmed");
 
+  // The alarm repeats while the event stays confirmed: the blast count keeps
+  // climbing across the ~2s cadence.
+  const duringA = await blastCount(page);
+  await expect.poll(() => blastCount(page), { timeout: 6_000 }).toBeGreaterThan(duringA);
+
+  // Acknowledge → event becomes "responding" → the alarm silences.
+  const ack = await request.post(`/api/events/${eventId}/respond`, {
+    data: { responderId: "guard-sharma", action: "acknowledged" },
+  });
+  expect(ack.ok()).toBeTruthy();
+
+  // Give the acknowledge delta a full cadence to land and clear the interval,
+  // then confirm no further blasts sound.
   await expect
-    .poll(
-      () =>
-        page.evaluate(
-          () =>
-            (window as Window & {
-              __chimeProbe?: { oscillatorStarts: number; oscillatorStops: number };
-            }).__chimeProbe ?? { oscillatorStarts: 0, oscillatorStops: 0 },
-        ),
-      { timeout: 5_000 },
-    )
-    .toMatchObject({ oscillatorStarts: 4, oscillatorStops: 4 });
+    .poll(async () => {
+      const before = await blastCount(page);
+      await page.waitForTimeout(2_600);
+      const after = await blastCount(page);
+      return after - before;
+    })
+    .toBe(0);
 
   const cleanup = await request.post(`/api/events/${eventId}/respond`, {
     data: { responderId: "guard-sharma", action: "resolved" },
@@ -140,11 +150,11 @@ test("sound toggle primes WebAudio and chimes on a new confirmation", async ({
   expect(cleanup.ok()).toBeTruthy();
 });
 
-test("a reload with sound already on re-arms the chime after any gesture", async ({
+test("a reload with sound already on re-arms the hooter after any gesture", async ({
   page,
   request,
 }) => {
-  await page.addInitScript(installChimeProbe);
+  await page.addInitScript(installHooterProbe);
   // The persisted preference from an earlier visit — no toggle click happens.
   await page.addInitScript(() => {
     window.localStorage.setItem("sound", "on");
@@ -156,7 +166,7 @@ test("a reload with sound already on re-arms the chime after any gesture", async
     { timeout: 15_000 },
   );
   await expect(
-    page.getByRole("button", { name: /mute confirmed-event alert sound/i }),
+    page.getByRole("button", { name: /mute the warning alarm/i }),
   ).toHaveAttribute("aria-pressed", "true");
 
   // Any interaction (not the toggle) must unlock the audio context.
@@ -165,8 +175,8 @@ test("a reload with sound already on re-arms the chime after any gesture", async
     .poll(() =>
       page.evaluate(() => {
         const probe = (window as Window & {
-          __chimeProbe?: { contexts: number; resumes: number };
-        }).__chimeProbe;
+          __hooterProbe?: { contexts: number; resumes: number };
+        }).__hooterProbe;
         return { contexts: probe?.contexts ?? 0, resumes: probe?.resumes ?? 0 };
       }),
     )
@@ -189,18 +199,8 @@ test("a reload with sound already on re-arms the chime after any gesture", async
   };
   expect(eventState).toBe("confirmed");
 
-  await expect
-    .poll(
-      () =>
-        page.evaluate(
-          () =>
-            (window as Window & {
-              __chimeProbe?: { oscillatorStarts: number; oscillatorStops: number };
-            }).__chimeProbe ?? { oscillatorStarts: 0, oscillatorStops: 0 },
-        ),
-      { timeout: 5_000 },
-    )
-    .toMatchObject({ oscillatorStarts: 2, oscillatorStops: 2 });
+  // The re-armed context sounds the alarm on the confirmation.
+  await expect.poll(() => blastCount(page), { timeout: 6_000 }).toBeGreaterThanOrEqual(1);
 
   const cleanup = await request.post(`/api/events/${eventId}/respond`, {
     data: { responderId: "guard-sharma", action: "resolved" },

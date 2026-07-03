@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { HonestyChip } from "@/components/honesty-chip";
 import type {
@@ -8,7 +8,9 @@ import type {
   EventState,
   ResponseAction,
 } from "@/domain/types";
+import { useAlarm } from "@/hooks/use-alarm";
 import { useLiveStream } from "@/hooks/use-live-stream";
+import { hasActiveAlarm } from "@/lib/alarm";
 import { formatIstTime } from "@/lib/time";
 import type { FieldStreamEvent, StreamEventType } from "@/stream/events";
 
@@ -163,6 +165,14 @@ export function ChannelsBoard({
   }, []);
 
   useLiveStream({ types: CHANNEL_STREAM_TYPES, onEvent: onStreamEvent });
+
+  // Warning hooter sounds while any event surfaced on this board is confirmed
+  // (unacknowledged) and stops when rail control acknowledges it.
+  const alarmActive = useMemo(
+    () => hasActiveAlarm([...events.values()].map((event) => event.state)),
+    [events],
+  );
+  useAlarm(alarmActive);
 
   const acknowledge = useCallback(
     async (alertId: string, eventId: string) => {

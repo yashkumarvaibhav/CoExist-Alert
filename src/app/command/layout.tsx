@@ -25,8 +25,14 @@ export default function CommandLayout({
     nodeNames,
   });
 
+  // Seed the warning alarm with events already open at load — the SSE stream
+  // sends no snapshot on connect, so a confirmed event must sound immediately.
+  const alarmEvents = repos.events
+    .listOpen()
+    .map(({ id, state, nodeId }) => ({ id, state, nodeId }));
+
   return (
-    <CommandShell nodes={nodes} searchItems={searchItems}>
+    <CommandShell nodes={nodes} searchItems={searchItems} alarmEvents={alarmEvents}>
       {children}
     </CommandShell>
   );

@@ -11,7 +11,7 @@ import { LiveStatus } from "@/components/command/live-status";
 import { RoleSwitcher } from "@/components/command/role-switcher";
 import { SearchPalette } from "@/components/command/search-palette";
 import { SoundToggle } from "@/components/command/sound-toggle";
-import { ConfirmedChime } from "@/components/confirmed-chime";
+import { ConfirmedAlarm, type AlarmSeedEvent } from "@/components/confirmed-alarm";
 import { ConnectionBanner } from "@/components/connection-banner";
 import { LiveStreamProvider } from "@/components/live-stream-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -25,10 +25,12 @@ import { APP_NAME } from "@/lib/app-info";
 export function CommandShell({
   nodes,
   searchItems,
+  alarmEvents,
   children,
 }: {
   nodes: NavNode[];
   searchItems: SearchItem[];
+  alarmEvents: AlarmSeedEvent[];
   children: React.ReactNode;
 }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -69,7 +71,7 @@ export function CommandShell({
 
   return (
     <LiveStreamProvider>
-    <ConfirmedChime />
+    <ConfirmedAlarm initialEvents={alarmEvents} />
     <div className="flex min-h-screen bg-page">
       <a
         href="#main"

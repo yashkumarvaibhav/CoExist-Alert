@@ -1,12 +1,13 @@
 "use client";
 
-import { playChime, primeChime } from "@/lib/chime";
+import { playHooter, primeHooter } from "@/lib/hooter";
 import { setSoundEnabled, useSoundEnabled } from "@/hooks/use-sound";
 
 /**
- * Top-bar toggle for confirmed-event chimes (Command/Guard). Off by default.
- * Enabling counts as the user gesture that unlocks the WebAudio context, so we
- * prime it here — browsers block audio started without a prior interaction.
+ * Top-bar toggle for the confirmed-event warning hooter (Command/Guard/
+ * Channels). Off by default. Enabling counts as the user gesture that unlocks
+ * the WebAudio context, so we prime it here — browsers block audio started
+ * without a prior interaction — and sound one blast as an audible preview.
  */
 export function SoundToggle() {
   const enabled = useSoundEnabled();
@@ -14,15 +15,15 @@ export function SoundToggle() {
   function toggle() {
     const next = !enabled;
     if (next) {
-      primeChime();
-      // Audible confirmation the alert tone is active — the toggle click is
-      // the unlocking gesture, so this also proves audio actually works.
-      playChime();
+      primeHooter();
+      // Sound one blast as an audible preview of the warning tone — the toggle
+      // click is the unlocking gesture, so this also proves audio works.
+      playHooter();
     }
     setSoundEnabled(next);
   }
 
-  const label = enabled ? "Mute confirmed-event alert sound" : "Enable confirmed-event alert sound";
+  const label = enabled ? "Mute the warning alarm" : "Enable the warning alarm";
 
   return (
     <button

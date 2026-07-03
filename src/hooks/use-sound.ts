@@ -3,10 +3,10 @@
 import { useSyncExternalStore } from "react";
 
 /**
- * Shared sound-preference store: whether confirmed-event chimes play on the
- * Command/Guard views. Off by default (autoplay policy + demo etiquette); the
- * toggle persists the choice to localStorage. Mirrors the theme store so the
- * top-bar toggle and the headless chime component stay in lockstep.
+ * Shared sound-preference store: whether the confirmed-event warning hooter
+ * sounds on the Command/Guard/Channels views. Off by default (autoplay policy +
+ * demo etiquette); the toggle persists the choice to localStorage. Mirrors the
+ * theme store so the top-bar toggle and the alarm stay in lockstep.
  */
 
 const STORAGE_KEY = "sound";

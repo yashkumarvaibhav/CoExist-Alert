@@ -113,7 +113,7 @@ export default function ChannelsViewPage() {
     buildChannelSeed(getRuntimeRepositories());
 
   return (
-    <StandaloneShell wide>
+    <StandaloneShell wide sound>
       <header>
         <h1 className="text-3xl">Field channels</h1>
         <p className="mt-1 text-sm text-muted">
