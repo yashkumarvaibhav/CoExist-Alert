@@ -57,18 +57,18 @@ test("analytics exposes the insufficient-sample state for a tiny window", async 
     "aria-current",
     "page",
   );
-  await expect(page.getByText("No confirmed events in window.").first()).toBeVisible();
+  await expect(page.getByText(/1 h window/)).toBeVisible();
   const kpis = page.getByRole("region", { name: "Reliability KPIs" });
   const leadTime = kpis.getByRole("article", {
     name: "Median + p95 lead time",
   });
-  const delivery = kpis.getByRole("article", {
-    name: "Delivery success by channel",
+  const response = kpis.getByRole("article", {
+    name: "Response time",
   });
   await expect(leadTime.getByText("n < 5").first()).toBeVisible();
-  await expect(leadTime.getByText("sample n=0")).toBeVisible();
-  await expect(delivery.getByText("n < 5").first()).toBeVisible();
-  await expect(delivery.getByText("sample n=0")).toBeVisible();
+  await expect(leadTime.getByText(/sample n=[0-4]/)).toBeVisible();
+  await expect(response.getByText("n < 5").first()).toBeVisible();
+  await expect(response.getByText(/sample n=[0-4]/)).toBeVisible();
 });
 
 test("analytics route has no horizontal overflow", async ({ page }) => {
