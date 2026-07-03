@@ -25,7 +25,7 @@
     <rect x="126" y="134" width="24" height="84" rx="12" fill="#e0a35a"/>
     <rect x="214" y="130" width="24" height="88" rx="12" fill="#e06b6b"/>
   </g>
-  <rect x="30" y="30" width="248" height="50" rx="12" fill="rgba(245,248,248,0.12)" stroke="rgba(124,228,222,0.55)"/>
-  <text x="50" y="62" fill="#f5f8f8" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700">SIMULATED DEMO SNAPSHOT</text>
+  <rect x="30" y="30" width="372" height="50" rx="12" fill="rgba(245,248,248,0.12)" stroke="rgba(124,228,222,0.55)"/>
+  <text x="50" y="62" fill="#f5f8f8" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700" textLength="332" lengthAdjust="spacingAndGlyphs">SIMULATED DEMO SNAPSHOT</text>
   <text x="50" y="500" fill="#a7b2b3" font-family="Arial, Helvetica, sans-serif" font-size="22">thermal corroboration · rail crossing KM-47</text>
 </svg>

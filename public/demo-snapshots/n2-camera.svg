@@ -21,6 +21,6 @@
   </g>
   <circle cx="724" cy="72" r="12" fill="#7ce4de"/>
   <path d="M724 72 L665 284" stroke="#7ce4de" stroke-width="2" opacity="0.7"/>
-  <rect x="30" y="30" width="248" height="50" rx="12" fill="rgba(245,248,248,0.12)" stroke="rgba(124,228,222,0.55)"/>
-  <text x="50" y="62" fill="#f5f8f8" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700">SIMULATED DEMO SNAPSHOT</text>
+  <rect x="30" y="30" width="372" height="50" rx="12" fill="rgba(245,248,248,0.12)" stroke="rgba(124,228,222,0.55)"/>
+  <text x="50" y="62" fill="#f5f8f8" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700" textLength="332" lengthAdjust="spacingAndGlyphs">SIMULATED DEMO SNAPSHOT</text>
 </svg>
