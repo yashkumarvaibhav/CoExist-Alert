@@ -227,4 +227,91 @@ describe("database repositories", () => {
       database.close();
     }
   });
+
+  it("lists recent signals, windowed alerts and recent outages for the dashboard", () => {
+    const database = createInMemoryDatabase();
+
+    try {
+      const repos = createRepositories(database.db);
+      const node: SensorNode = {
+        id: "n1",
+        name: "Village Boundary East",
+        kind: "village_boundary",
+        lat: 26.87,
+        lng: 88.85,
+        geofenceRadiusM: 1_200,
+        status: "healthy",
+        batteryPct: 80,
+        linkQualityPct: 90,
+        lastHeartbeatAt: null,
+        createdAt: "2026-07-01T00:00:00.000Z",
+      };
+      repos.nodes.upsert(node);
+
+      for (let i = 0; i < 4; i += 1) {
+        const signal: Signal = {
+          id: `sig-${i}`,
+          nodeId: "n1",
+          at: `2026-07-02T00:0${i}:00.000Z`,
+          source: "camera",
+          classification: "large_animal",
+          confidence: 0.5,
+          snapshotPath: null,
+          eventId: null,
+        };
+        repos.signals.insert(signal);
+      }
+      expect(repos.signals.listRecent(2).map((s) => s.id)).toEqual([
+        "sig-3",
+        "sig-2",
+      ]);
+
+      const event: IncursionEvent = {
+        id: "ev-1",
+        nodeId: "n1",
+        openedAt: "2026-07-02T00:00:00.000Z",
+        state: "confirmed",
+        confirmedAt: "2026-07-02T00:00:30.000Z",
+        resolvedAt: null,
+        speciesLabel: "elephant_class",
+        leadSignalId: "sig-0",
+        confirmSignalId: "sig-1",
+        firstDeliveryAt: null,
+      };
+      repos.events.insert(event);
+
+      const makeAlert = (id: string, queuedAt: string): Alert => ({
+        id,
+        eventId: "ev-1",
+        outageId: null,
+        tier: 1,
+        channel: "siren",
+        targetRef: "n1",
+        status: "delivered",
+        queuedAt,
+        sentAt: null,
+        deliveredAt: queuedAt,
+        failedReason: null,
+        isLive: false,
+      });
+      repos.alerts.insert(makeAlert("al-old", "2026-06-01T00:00:00.000Z"));
+      repos.alerts.insert(makeAlert("al-new", "2026-07-02T01:00:00.000Z"));
+      expect(
+        repos.alerts.listSince("2026-07-01T00:00:00.000Z").map((a) => a.id),
+      ).toEqual(["al-new"]);
+
+      const makeOutage = (id: string, startedAt: string): Outage => ({
+        id,
+        nodeId: "n1",
+        startedAt,
+        endedAt: null,
+        opsAlerted: false,
+      });
+      repos.outages.insert(makeOutage("out-1", "2026-07-01T00:00:00.000Z"));
+      repos.outages.insert(makeOutage("out-2", "2026-07-02T00:00:00.000Z"));
+      expect(repos.outages.listRecent(1).map((o) => o.id)).toEqual(["out-2"]);
+    } finally {
+      database.close();
+    }
+  });
 });

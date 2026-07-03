@@ -8,7 +8,7 @@ import type { EventState, NodeStatus } from "@/domain/types";
 
 export type ChipStatus = NodeStatus | EventState;
 
-type ChipIconName = "check" | "triangle" | "alert" | "arrow" | "slash";
+type ChipIconName = "check" | "triangle" | "alert" | "arrow" | "slash" | "blind";
 
 const CHIP_META: Record<
   ChipStatus,
@@ -27,7 +27,7 @@ const CHIP_META: Record<
   offline: {
     label: "Offline",
     className: "border-status-offline/40 text-status-offline",
-    icon: "alert",
+    icon: "blind",
   },
   unconfirmed: {
     label: "Unconfirmed",
@@ -102,6 +102,15 @@ function ChipIcon({ icon }: { icon: ChipIconName }) {
         <svg {...shared}>
           <circle cx="12" cy="12" r="9" />
           <path d="M6 6l12 12" />
+        </svg>
+      );
+    case "blind":
+      // eye-off: a blind spot, distinct from the incursion alert icon
+      return (
+        <svg {...shared}>
+          <path d="M3 3l18 18" />
+          <path d="M10.6 5.3A10 10 0 0 1 12 5.2c6.8 0 9.8 6.8 9.8 6.8a16 16 0 0 1-2.9 3.9M6.6 6.6C3.8 8.4 2.2 12 2.2 12s3 6.8 9.8 6.8c1.7 0 3.2-.4 4.5-1.1" />
+          <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
         </svg>
       );
   }

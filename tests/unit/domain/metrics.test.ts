@@ -6,6 +6,7 @@ import {
   istHourOfDay,
   leadTimeStats,
   MIN_SAMPLES,
+  overallDeliveryRate,
   responseStats,
   uptimePct,
 } from "@/domain/metrics";
@@ -177,5 +178,33 @@ describe("hotspot buckets (IST hours)", () => {
       ]),
     );
     expect(buckets).toHaveLength(3);
+  });
+});
+
+describe("overall delivery rate", () => {
+  it("aggregates success over terminal alerts across all channels", () => {
+    const rate = overallDeliveryRate(
+      [
+        { channel: "siren", status: "delivered" },
+        { channel: "villager_phone", status: "delivered" },
+        { channel: "guard_webex", status: "failed" },
+        { channel: "control_room", status: "acked" },
+        { channel: "siren", status: "delivered" },
+        { channel: "guard_webex", status: "queued" }, // non-terminal — excluded
+      ],
+      5,
+    );
+    expect(rate).toEqual({ kind: "ok", value: 0.8, sampleSize: 5 });
+  });
+
+  it("reports insufficient below the sample floor", () => {
+    const rate = overallDeliveryRate(
+      [
+        { channel: "siren", status: "delivered" },
+        { channel: "siren", status: "failed" },
+      ],
+      5,
+    );
+    expect(rate).toEqual({ kind: "insufficient", sampleSize: 2 });
   });
 });

@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull } from "drizzle-orm";
 
 import { DEFAULT_SETTINGS } from "@/domain/types";
 import type {
@@ -115,6 +115,15 @@ export function createRepositories(db: AppDatabase) {
           .orderBy(asc(signals.at))
           .all();
       },
+
+      listRecent(limit: number): Signal[] {
+        return db
+          .select()
+          .from(signals)
+          .orderBy(desc(signals.at))
+          .limit(limit)
+          .all();
+      },
     },
 
     events: {
@@ -182,6 +191,15 @@ export function createRepositories(db: AppDatabase) {
           .from(alerts)
           .where(eq(alerts.eventId, eventId))
           .orderBy(asc(alerts.tier), asc(alerts.queuedAt), asc(alerts.id))
+          .all();
+      },
+
+      listSince(fromIso: string): Alert[] {
+        return db
+          .select()
+          .from(alerts)
+          .where(gte(alerts.queuedAt, fromIso))
+          .orderBy(asc(alerts.queuedAt))
           .all();
       },
 
@@ -297,6 +315,15 @@ export function createRepositories(db: AppDatabase) {
           .from(outages)
           .where(eq(outages.nodeId, nodeId))
           .orderBy(asc(outages.startedAt))
+          .all();
+      },
+
+      listRecent(limit: number): Outage[] {
+        return db
+          .select()
+          .from(outages)
+          .orderBy(desc(outages.startedAt))
+          .limit(limit)
           .all();
       },
     },

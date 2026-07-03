@@ -92,6 +92,24 @@ export function deliveryRateByChannel(
   return rates;
 }
 
+/** Delivery success rate (0..1) across every channel, terminal alerts only. */
+export function overallDeliveryRate(
+  alerts: DeliverySample[],
+  minSamples = MIN_SAMPLES,
+): Metric {
+  let success = 0;
+  let terminal = 0;
+  for (const alert of alerts) {
+    if (!TERMINAL_STATUSES.has(alert.status)) continue;
+    terminal += 1;
+    if (SUCCESS_STATUSES.has(alert.status)) success += 1;
+  }
+  if (terminal < minSamples) {
+    return { kind: "insufficient", sampleSize: terminal };
+  }
+  return { kind: "ok", value: success / terminal, sampleSize: terminal };
+}
+
 // ----------------------------------------------------------- response times
 
 export interface ResponseSample {
