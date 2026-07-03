@@ -171,7 +171,7 @@ export function SearchPalette({ items }: { items: SearchItem[] }) {
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[10vh] sm:pt-[14vh]">
+        <div className="fixed inset-0 z-[2000] flex items-start justify-center p-4 pt-[10vh] sm:pt-[14vh]">
           <div
             aria-hidden="true"
             onClick={closePalette}
@@ -214,7 +214,7 @@ export function SearchPalette({ items }: { items: SearchItem[] }) {
               </kbd>
             </div>
 
-            <div ref={listRef} id={listboxId} role="listbox" aria-label="Search results" className="min-h-0 flex-1 overflow-y-auto p-2">
+            <div ref={listRef} id={listboxId} role="listbox" aria-label="Search results" className="min-h-0 flex-1 overflow-y-auto bg-raised p-2">
               {flat.length === 0 ? (
                 <p className="px-3 py-8 text-center text-sm text-muted">
                   No matches — try a node or species name.

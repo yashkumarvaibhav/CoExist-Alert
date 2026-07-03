@@ -15,6 +15,25 @@ test("the top-bar trigger opens the palette focused on the search input", async 
   await expect(dialog.getByRole("option", { name: /Command dashboard/i })).toBeVisible();
 });
 
+test("the palette stays above the dashboard map layer", async ({ page }) => {
+  await page.goto("/command");
+  await page.getByRole("button", { name: /search.*command palette/i }).click();
+
+  const dialog = page.getByRole("dialog", { name: /search command console/i });
+  await expect(dialog).toBeVisible();
+  await expect(page.locator(".leaflet-container")).toBeVisible();
+
+  const isDialogOnTop = await dialog.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    const x = rect.left + rect.width / 2;
+    const y = rect.bottom - 24;
+    const top = document.elementFromPoint(x, y);
+    return top !== null && element.contains(top);
+  });
+
+  expect(isDialogOnTop).toBe(true);
+});
+
 test("Ctrl+K toggles the palette open", async ({ page }) => {
   await page.goto("/command");
   await page.keyboard.press("Control+k");
