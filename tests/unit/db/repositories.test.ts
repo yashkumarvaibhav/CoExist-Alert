@@ -329,4 +329,107 @@ describe("database repositories", () => {
       database.close();
     }
   });
+
+  it("lists node detail signals and outages in a bounded window", () => {
+    const database = createInMemoryDatabase();
+
+    try {
+      const repos = createRepositories(database.db);
+      const nodes: SensorNode[] = [
+        {
+          id: "n1",
+          name: "Village Boundary East",
+          kind: "village_boundary",
+          lat: 26.87,
+          lng: 88.85,
+          geofenceRadiusM: 1_800,
+          status: "healthy",
+          batteryPct: 80,
+          linkQualityPct: 90,
+          lastHeartbeatAt: null,
+          createdAt: "2026-07-01T00:00:00.000Z",
+        },
+        {
+          id: "n2",
+          name: "Rail Crossing KM-47",
+          kind: "rail_crossing",
+          lat: 26.89,
+          lng: 88.89,
+          geofenceRadiusM: 2_200,
+          status: "healthy",
+          batteryPct: 86,
+          linkQualityPct: 94,
+          lastHeartbeatAt: null,
+          createdAt: "2026-07-01T00:00:00.000Z",
+        },
+      ];
+      for (const node of nodes) repos.nodes.upsert(node);
+
+      const makeSignal = (id: string, nodeId: string, at: string): Signal => ({
+        id,
+        nodeId,
+        at,
+        source: "camera",
+        classification: "large_animal",
+        confidence: 0.6,
+        snapshotPath: null,
+        eventId: null,
+      });
+      repos.signals.insert(makeSignal("sig-n1-old", "n1", "2026-07-02T00:00:00.000Z"));
+      repos.signals.insert(makeSignal("sig-n2", "n2", "2026-07-02T00:01:00.000Z"));
+      repos.signals.insert(makeSignal("sig-n1-new", "n1", "2026-07-02T00:02:00.000Z"));
+      expect(repos.signals.listRecentForNode("n1", 2).map((s) => s.id)).toEqual([
+        "sig-n1-new",
+        "sig-n1-old",
+      ]);
+
+      const makeOutage = (
+        id: string,
+        startedAt: string,
+        endedAt: string | null,
+      ): Outage => ({
+        id,
+        nodeId: "n1",
+        startedAt,
+        endedAt,
+        opsAlerted: true,
+      });
+      repos.outages.insert(
+        makeOutage(
+          "out-before",
+          "2026-07-01T00:00:00.000Z",
+          "2026-07-01T00:30:00.000Z",
+        ),
+      );
+      repos.outages.insert(
+        makeOutage(
+          "out-overlaps-start",
+          "2026-07-01T23:50:00.000Z",
+          "2026-07-02T00:05:00.000Z",
+        ),
+      );
+      repos.outages.insert(
+        makeOutage(
+          "out-inside",
+          "2026-07-02T00:20:00.000Z",
+          "2026-07-02T00:30:00.000Z",
+        ),
+      );
+      repos.outages.insert(
+        makeOutage("out-open", "2026-07-02T00:40:00.000Z", null),
+      );
+
+      expect(
+        repos.outages
+          .listForNodeWindow(
+            "n1",
+            "2026-07-02T00:00:00.000Z",
+            "2026-07-02T01:00:00.000Z",
+          )
+          .map((outage) => outage.id),
+      ).toEqual(["out-overlaps-start", "out-inside", "out-open"]);
+    } finally {
+      database.close();
+    }
+  });
 });

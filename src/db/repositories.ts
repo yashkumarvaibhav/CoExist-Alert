@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, inArray, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, lt, or } from "drizzle-orm";
 
 import { DEFAULT_SETTINGS } from "@/domain/types";
 import type {
@@ -129,6 +129,16 @@ export function createRepositories(db: AppDatabase) {
         return db
           .select()
           .from(signals)
+          .orderBy(desc(signals.at))
+          .limit(limit)
+          .all();
+      },
+
+      listRecentForNode(nodeId: string, limit: number): Signal[] {
+        return db
+          .select()
+          .from(signals)
+          .where(eq(signals.nodeId, nodeId))
           .orderBy(desc(signals.at))
           .limit(limit)
           .all();
@@ -323,6 +333,21 @@ export function createRepositories(db: AppDatabase) {
           .select()
           .from(outages)
           .where(eq(outages.nodeId, nodeId))
+          .orderBy(asc(outages.startedAt))
+          .all();
+      },
+
+      listForNodeWindow(nodeId: string, fromIso: string, toIso: string): Outage[] {
+        return db
+          .select()
+          .from(outages)
+          .where(
+            and(
+              eq(outages.nodeId, nodeId),
+              lt(outages.startedAt, toIso),
+              or(isNull(outages.endedAt), gte(outages.endedAt, fromIso)),
+            ),
+          )
           .orderBy(asc(outages.startedAt))
           .all();
       },

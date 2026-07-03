@@ -121,7 +121,13 @@ test("no horizontal overflow on any shell route", async ({ page }) => {
   }
 });
 
-test("unknown node id returns 404", async ({ page }) => {
+test("unknown node id renders the not-found state", async ({ page }) => {
   const response = await page.goto("/command/nodes/does-not-exist");
-  expect(response?.status()).toBe(404);
+  expect(response?.status()).toBeLessThan(500);
+  await expect(
+    page.getByRole("heading", { name: "Node not found" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Back to command dashboard" }),
+  ).toBeVisible();
 });
