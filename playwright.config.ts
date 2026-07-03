@@ -17,10 +17,25 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   projects: [
-    { name: "desktop-light", use: { ...desktop, colorScheme: "light" } },
-    { name: "desktop-dark", use: { ...desktop, colorScheme: "dark" } },
-    { name: "mobile-light", use: { ...mobile, colorScheme: "light" } },
-    { name: "mobile-dark", use: { ...mobile, colorScheme: "dark" } },
+    { name: "desktop-light", use: { ...desktop, colorScheme: "light" }, testIgnore: /guard-flow\.spec\.ts/ },
+    { name: "desktop-dark", use: { ...desktop, colorScheme: "dark" }, testIgnore: /guard-flow\.spec\.ts/ },
+    { name: "mobile-light", use: { ...mobile, colorScheme: "light" }, testIgnore: /guard-flow\.spec\.ts/ },
+    { name: "mobile-dark", use: { ...mobile, colorScheme: "dark" }, testIgnore: /guard-flow\.spec\.ts/ },
+    {
+      // The guard acknowledge journey mutates shared world state, so it runs
+      // alone at the spec's exact 360×740 target, serialized after
+      // desktop-light (home of the other world-mutating scenario tests).
+      name: "guard-flow",
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 360, height: 740 },
+        isMobile: true,
+        hasTouch: true,
+        colorScheme: "light",
+      },
+      testMatch: /guard-flow\.spec\.ts/,
+      dependencies: ["desktop-light"],
+    },
   ],
   webServer: {
     // CI builds beforehand and serves the production bundle; local runs reuse

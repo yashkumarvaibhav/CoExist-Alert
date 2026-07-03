@@ -38,8 +38,8 @@ jobs:
       - name: Install Playwright chromium
         run: npx playwright install --with-deps chromium
 
-      - name: E2E smoke (desktop, light + dark)
-        run: npx playwright test --project=desktop-light --project=desktop-dark
+      - name: E2E smoke (desktop light + dark, guard flow)
+        run: npx playwright test --project=desktop-light --project=desktop-dark --project=guard-flow
         env:
           CI: "true"
 
