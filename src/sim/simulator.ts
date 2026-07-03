@@ -146,6 +146,11 @@ export class FieldSimulator {
     this.killed.add(nodeId);
   }
 
+  /** Demo-panel toggle; `reset()` returns ambient to its boot-time value. */
+  setAmbient(enabled: boolean): void {
+    this.ambient = enabled;
+  }
+
   restoreLink(nodeId: string): void {
     this.requireNode(nodeId);
     this.killed.delete(nodeId);

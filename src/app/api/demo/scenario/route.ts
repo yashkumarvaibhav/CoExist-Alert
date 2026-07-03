@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 
+import { getRuntimeRepositories } from "@/db/runtime";
 import { ingestErrorResponse, parseRequestBody } from "@/ingest/http";
 import { scenarioRequestSchema } from "@/sim/demo-request";
 import { SimulatorError } from "@/sim/errors";
+import { resetWorldEvents } from "@/sim/reset";
 import { getOrCreateSimulator } from "@/sim/runtime";
+import { publishStreamEvents } from "@/stream/hub";
 
 function requireNodeId(nodeId: string | undefined): string {
   if (nodeId === undefined) {
@@ -41,9 +44,30 @@ export async function POST(request: Request) {
         simulator.restoreLink(requireNodeId(payload.nodeId));
         return NextResponse.json({ ok: true, state: simulator.status() });
       }
+      case "set_ambient": {
+        if (payload.enabled === undefined) {
+          throw new SimulatorError(
+            400,
+            "enabled_required",
+            "set_ambient needs an enabled flag.",
+          );
+        }
+        simulator.setAmbient(payload.enabled);
+        return NextResponse.json({ ok: true, state: simulator.status() });
+      }
       case "reset": {
         simulator.reset();
         return NextResponse.json({ ok: true, state: simulator.status() });
+      }
+      case "reset_world": {
+        simulator.reset();
+        const outcome = resetWorldEvents(getRuntimeRepositories());
+        publishStreamEvents(outcome.streamEvents);
+        return NextResponse.json({
+          ok: true,
+          settled: outcome.settled,
+          state: simulator.status(),
+        });
       }
     }
   } catch (error) {

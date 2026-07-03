@@ -10,10 +10,14 @@ export const scenarioRequestSchema = z
       "second_signal",
       "kill_link",
       "restore_link",
+      "set_ambient",
       "reset",
+      "reset_world",
     ]),
     nodeId: z.string().trim().min(1).optional(),
     preset: z.enum(SCENARIO_PRESETS).optional(),
+    /** Required by set_ambient. */
+    enabled: z.boolean().optional(),
   })
   .strict();
 

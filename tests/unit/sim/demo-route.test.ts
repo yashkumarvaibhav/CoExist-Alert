@@ -281,4 +281,83 @@ describe("POST /api/demo/scenario", () => {
       simulator: { status: "idle", ambient: false, killedNodeIds: [] },
     });
   });
+
+  it("set_ambient toggles ambient chatter on the running simulator", async () => {
+    const on = await postScenario(
+      jsonRequest({ action: "set_ambient", enabled: true }),
+    );
+    expect(on.status).toBe(200);
+    expect(await readJson(on)).toMatchObject({ ok: true, state: { ambient: true } });
+
+    const off = await postScenario(
+      jsonRequest({ action: "set_ambient", enabled: false }),
+    );
+    expect(off.status).toBe(200);
+    expect(await readJson(off)).toMatchObject({ ok: true, state: { ambient: false } });
+  });
+
+  it("set_ambient without the enabled flag is a validation error", async () => {
+    const response = await postScenario(jsonRequest({ action: "set_ambient" }));
+    expect(response.status).toBe(400);
+  });
+
+  it("reset_world settles open events and resets the simulator", async () => {
+    // Kill a link and confirm one event; leave a second one unconfirmed.
+    await postScenario(jsonRequest({ action: "kill_link", nodeId: "n3" }));
+    await postScenario(
+      jsonRequest({ action: "trigger_detection", preset: "rail_crossing_confirmed" }),
+    );
+    await vi.advanceTimersByTimeAsync(4_000);
+    await postScenario(
+      jsonRequest({ action: "trigger_detection", preset: "weak_signal_expires", nodeId: "n1" }),
+    );
+    await vi.advanceTimersByTimeAsync(0);
+    const openBefore = inspect((repos) => repos.events.listOpen());
+    expect(openBefore.map((event) => event.state).sort()).toEqual([
+      "confirmed",
+      "unconfirmed",
+    ]);
+
+    const collected = collectStreamEvents();
+    const response = await postScenario(jsonRequest({ action: "reset_world" }));
+
+    expect(response.status).toBe(200);
+    expect(await readJson(response)).toMatchObject({
+      ok: true,
+      settled: { resolved: 1, expired: 1 },
+      state: { killedNodeIds: [], scenario: null },
+    });
+
+    expect(inspect((repos) => repos.events.listOpen())).toEqual([]);
+    const confirmedAfter = inspect((repos) =>
+      repos.events.findById(
+        openBefore.find((event) => event.state === "confirmed")!.id,
+      ),
+    );
+    expect(confirmedAfter).toMatchObject({
+      state: "resolved",
+      resolvedAt: plusSeconds(T0, 4),
+    });
+    const unconfirmedAfter = inspect((repos) =>
+      repos.events.findById(
+        openBefore.find((event) => event.state === "unconfirmed")!.id,
+      ),
+    );
+    expect(unconfirmedAfter).toMatchObject({ state: "expired" });
+
+    // Every settled event is published so live views drop their cards.
+    expect(
+      collected
+        .filter(
+          (event): event is Extract<FieldStreamEvent, { type: "event" }> =>
+            event.type === "event",
+        )
+        .map((event) => event.payload.state)
+        .sort(),
+    ).toEqual(["expired", "resolved"]);
+
+    // Idempotent: a second reset settles nothing.
+    const again = await postScenario(jsonRequest({ action: "reset_world" }));
+    expect(await readJson(again)).toMatchObject({ settled: { resolved: 0, expired: 0 } });
+  });
 });

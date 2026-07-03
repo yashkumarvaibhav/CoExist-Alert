@@ -175,3 +175,60 @@ test("rail advisory: acknowledge records the control-room response", async ({
   });
   expect(cleanup.ok()).toBeTruthy();
 });
+
+test("full demo flow: preset on /demo, cascade on /command, ack on /guard, resolved everywhere", async ({
+  page,
+  context,
+  request,
+}) => {
+  // Start from a settled world (also releases the scenario slot).
+  const reset = await request.post("/api/demo/scenario", {
+    data: { action: "reset_world" },
+  });
+  expect(reset.ok()).toBeTruthy();
+
+  // 1 — Demo panel: run the village dawn preset.
+  await page.goto("/demo");
+  await expect(
+    page.getByText("DEMO CONTROLS — drives the simulated field"),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Village dawn incursion" }).click();
+  await expect(
+    page.getByText(/Preset "Village dawn incursion" started/),
+  ).toBeVisible();
+
+  // The scenario log narrates the confirmation live (corroboration at +6s).
+  await expect(
+    page.getByText(/confirmed at Village Boundary East — cascade dispatched/),
+  ).toBeVisible({ timeout: 20_000 });
+
+  // 2 — Command dashboard shows the active cascade.
+  const command = await context.newPage();
+  await command.goto("/command");
+  const panel = command.getByRole("region", { name: "Active cascades" });
+  const card = panel.locator("li[data-cascade-event-id]").first();
+  await expect(card).toContainText("Elephant-class — Village Boundary East");
+
+  // 3 — Guard acknowledges and walks the stepper to resolution.
+  const guard = await context.newPage();
+  await guard.goto("/guard");
+  const takeover = guard.locator("[data-incoming-event-id]").first();
+  await expect(takeover).toBeVisible();
+  await takeover.getByRole("button", { name: "Acknowledge" }).click();
+  await expect(takeover.getByText(/Escalation cancelled/)).toBeVisible();
+  await takeover.getByRole("button", { name: "Mark en route" }).click();
+  await takeover.getByRole("button", { name: "Mark on site" }).click();
+  await takeover.getByRole("button", { name: "Mark resolved" }).click();
+  await expect(guard.getByText("Standing by")).toBeVisible();
+
+  // 4 — The cascade clears live on command; the demo log records it.
+  await expect(
+    panel.getByText("No active cascades — the boundary is quiet."),
+  ).toBeVisible({ timeout: 10_000 });
+  await expect(
+    page.getByText(/Event at Village Boundary East resolved/),
+  ).toBeVisible({ timeout: 10_000 });
+
+  await command.close();
+  await guard.close();
+});
