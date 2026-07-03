@@ -1,6 +1,6 @@
 "use client";
 
-import { primeChime } from "@/lib/chime";
+import { playChime, primeChime } from "@/lib/chime";
 import { setSoundEnabled, useSoundEnabled } from "@/hooks/use-sound";
 
 /**
@@ -13,7 +13,12 @@ export function SoundToggle() {
 
   function toggle() {
     const next = !enabled;
-    if (next) primeChime();
+    if (next) {
+      primeChime();
+      // Audible confirmation the alert tone is active — the toggle click is
+      // the unlocking gesture, so this also proves audio actually works.
+      playChime();
+    }
     setSoundEnabled(next);
   }
 

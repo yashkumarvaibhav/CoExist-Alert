@@ -27,11 +27,11 @@ export function primeChime(): void {
   if (audioContext.state === "suspended") void audioContext.resume();
 }
 
-/** Play the chime if the context has been primed and is running. */
-export function playChime(): void {
-  const ctx = audioContext;
-  if (ctx === null || ctx.state !== "running") return;
+/* A resume() started outside a user gesture stays pending until the browser
+   unlocks audio; past this age a late-resolving chime is stale noise. */
+const RESUME_CHIME_MAX_AGE_MS = 1_500;
 
+function strike(ctx: AudioContext): void {
   const now = ctx.currentTime;
   const gain = ctx.createGain();
   gain.gain.setValueAtTime(0.0001, now);
@@ -51,6 +51,37 @@ export function playChime(): void {
     osc.start(start);
     osc.stop(now + 0.6);
   }
+}
+
+/**
+ * Play the chime. The context is created lazily so a page load that starts
+ * with the persisted preference already on (no toggle click, so no prime) can
+ * still play once the browser lets audio run — see the gesture unlock in
+ * ConfirmedChime. A suspended context is resumed and the chime plays on
+ * resolution unless it has gone stale.
+ */
+export function playChime(): void {
+  const Ctor = resolveAudioContextCtor();
+  if (Ctor === null) return;
+  audioContext ??= new Ctor();
+  const ctx = audioContext;
+
+  if (ctx.state === "running") {
+    strike(ctx);
+    return;
+  }
+  const queuedAtMs = Date.now();
+  void ctx
+    .resume()
+    .then(() => {
+      if (
+        ctx.state === "running" &&
+        Date.now() - queuedAtMs < RESUME_CHIME_MAX_AGE_MS
+      ) {
+        strike(ctx);
+      }
+    })
+    .catch(() => undefined);
 }
 
 /**

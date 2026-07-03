@@ -8,64 +8,68 @@ import { expect, test } from "@playwright/test";
 
 test.describe.configure({ mode: "default" });
 
+// Installed via addInitScript: replaces WebAudio with a counting mock so the
+// chime flow is observable without sound hardware.
+function installChimeProbe() {
+  const probe = {
+    contexts: 0,
+    resumes: 0,
+    oscillatorStarts: 0,
+    oscillatorStops: 0,
+  };
+  (window as Window & { __chimeProbe?: typeof probe }).__chimeProbe = probe;
+
+  class MockAudioContext {
+    state: AudioContextState = "suspended";
+    currentTime = 10;
+    destination = {};
+
+    constructor() {
+      probe.contexts += 1;
+    }
+
+    resume() {
+      probe.resumes += 1;
+      this.state = "running";
+      return Promise.resolve();
+    }
+
+    createGain() {
+      return {
+        gain: {
+          setValueAtTime: () => undefined,
+          exponentialRampToValueAtTime: () => undefined,
+        },
+        connect: () => undefined,
+      };
+    }
+
+    createOscillator() {
+      return {
+        type: "sine",
+        frequency: { setValueAtTime: () => undefined },
+        connect: () => undefined,
+        start: () => {
+          probe.oscillatorStarts += 1;
+        },
+        stop: () => {
+          probe.oscillatorStops += 1;
+        },
+      };
+    }
+  }
+
+  Object.defineProperty(window, "AudioContext", {
+    configurable: true,
+    value: MockAudioContext,
+  });
+}
+
 test("sound toggle primes WebAudio and chimes on a new confirmation", async ({
   page,
   request,
 }) => {
-  await page.addInitScript(() => {
-    const probe = {
-      contexts: 0,
-      resumes: 0,
-      oscillatorStarts: 0,
-      oscillatorStops: 0,
-    };
-    (window as Window & { __chimeProbe?: typeof probe }).__chimeProbe = probe;
-
-    class MockAudioContext {
-      state: AudioContextState = "suspended";
-      currentTime = 10;
-      destination = {};
-
-      constructor() {
-        probe.contexts += 1;
-      }
-
-      resume() {
-        probe.resumes += 1;
-        this.state = "running";
-        return Promise.resolve();
-      }
-
-      createGain() {
-        return {
-          gain: {
-            setValueAtTime: () => undefined,
-            exponentialRampToValueAtTime: () => undefined,
-          },
-          connect: () => undefined,
-        };
-      }
-
-      createOscillator() {
-        return {
-          type: "sine",
-          frequency: { setValueAtTime: () => undefined },
-          connect: () => undefined,
-          start: () => {
-            probe.oscillatorStarts += 1;
-          },
-          stop: () => {
-            probe.oscillatorStops += 1;
-          },
-        };
-      }
-    }
-
-    Object.defineProperty(window, "AudioContext", {
-      configurable: true,
-      value: MockAudioContext,
-    });
-  });
+  await page.addInitScript(installChimeProbe);
 
   await page.goto("/command");
   await expect(page.getByRole("status", { name: /live data stream/i })).toContainText(
@@ -77,6 +81,86 @@ test("sound toggle primes WebAudio and chimes on a new confirmation", async ({
   await toggle.click();
   await expect(page.getByRole("button", { name: /mute confirmed-event alert sound/i }))
     .toHaveAttribute("aria-pressed", "true");
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const probe = (window as Window & {
+          __chimeProbe?: { contexts: number; resumes: number };
+        }).__chimeProbe;
+        return { contexts: probe?.contexts ?? 0, resumes: probe?.resumes ?? 0 };
+      }),
+    )
+    .toEqual({ contexts: 1, resumes: 1 });
+
+  // Enabling plays an audible confirmation (one two-oscillator chime).
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as Window & {
+            __chimeProbe?: { oscillatorStarts: number; oscillatorStops: number };
+          }).__chimeProbe ?? { oscillatorStarts: 0, oscillatorStops: 0 },
+      ),
+    )
+    .toMatchObject({ oscillatorStarts: 2, oscillatorStops: 2 });
+
+  const trigger = await request.post("/api/ingest/detection", {
+    data: {
+      nodeId: "n1",
+      at: new Date().toISOString(),
+      source: "camera",
+      classification: "elephant_class",
+      confidence: 0.9,
+      snapshotRef: "/demo-snapshots/n1-dawn-boundary.svg",
+    },
+  });
+  expect(trigger.status()).toBe(202);
+  const { eventId, eventState } = (await trigger.json()) as {
+    eventId: string;
+    eventState: string;
+  };
+  expect(eventState).toBe("confirmed");
+
+  await expect
+    .poll(
+      () =>
+        page.evaluate(
+          () =>
+            (window as Window & {
+              __chimeProbe?: { oscillatorStarts: number; oscillatorStops: number };
+            }).__chimeProbe ?? { oscillatorStarts: 0, oscillatorStops: 0 },
+        ),
+      { timeout: 5_000 },
+    )
+    .toMatchObject({ oscillatorStarts: 4, oscillatorStops: 4 });
+
+  const cleanup = await request.post(`/api/events/${eventId}/respond`, {
+    data: { responderId: "guard-sharma", action: "resolved" },
+  });
+  expect(cleanup.ok()).toBeTruthy();
+});
+
+test("a reload with sound already on re-arms the chime after any gesture", async ({
+  page,
+  request,
+}) => {
+  await page.addInitScript(installChimeProbe);
+  // The persisted preference from an earlier visit — no toggle click happens.
+  await page.addInitScript(() => {
+    window.localStorage.setItem("sound", "on");
+  });
+
+  await page.goto("/command");
+  await expect(page.getByRole("status", { name: /live data stream/i })).toContainText(
+    "Live",
+    { timeout: 15_000 },
+  );
+  await expect(
+    page.getByRole("button", { name: /mute confirmed-event alert sound/i }),
+  ).toHaveAttribute("aria-pressed", "true");
+
+  // Any interaction (not the toggle) must unlock the audio context.
+  await page.getByRole("heading", { name: "Command dashboard" }).click();
   await expect
     .poll(() =>
       page.evaluate(() => {

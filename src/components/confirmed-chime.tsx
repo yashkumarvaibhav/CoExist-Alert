@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 
 import { useLiveStream } from "@/hooks/use-live-stream";
 import { useSoundEnabled } from "@/hooks/use-sound";
-import { isNewConfirmation, playChime } from "@/lib/chime";
+import { isNewConfirmation, playChime, primeChime } from "@/lib/chime";
 import type { StreamEventType } from "@/stream/events";
 
 // Only event deltas matter for the chime.
@@ -22,6 +22,20 @@ export function ConfirmedChime() {
     enabledRef.current = enabled;
   }, [enabled]);
   const seenRef = useRef<Set<string>>(new Set());
+
+  // With the persisted preference on, a fresh page load has no unlocked audio
+  // context (browsers require a user gesture). Re-arm on the first
+  // interaction so the chime survives reloads; primeChime is idempotent.
+  useEffect(() => {
+    if (!enabled) return;
+    const unlock = () => primeChime();
+    window.addEventListener("pointerdown", unlock);
+    window.addEventListener("keydown", unlock);
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+  }, [enabled]);
 
   useLiveStream({
     types: CHIME_EVENT_TYPES,
