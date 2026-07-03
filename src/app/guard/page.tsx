@@ -124,7 +124,7 @@ export default async function GuardViewPage({
   const settings = repos.settings.get();
 
   return (
-    <StandaloneShell>
+    <StandaloneShell sound>
       <header>
         <h1 className="text-3xl">Guard view</h1>
         <p className="mt-1 text-sm text-muted">

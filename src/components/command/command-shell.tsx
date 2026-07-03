@@ -8,6 +8,9 @@ import { BuildStamp } from "@/components/build-stamp";
 import { CommandNav, type NavNode } from "@/components/command/command-nav";
 import { LiveStatus } from "@/components/command/live-status";
 import { RoleSwitcher } from "@/components/command/role-switcher";
+import { SoundToggle } from "@/components/command/sound-toggle";
+import { ConfirmedChime } from "@/components/confirmed-chime";
+import { ConnectionBanner } from "@/components/connection-banner";
 import { LiveStreamProvider } from "@/components/live-stream-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { APP_NAME } from "@/lib/app-info";
@@ -62,6 +65,7 @@ export function CommandShell({
 
   return (
     <LiveStreamProvider>
+    <ConfirmedChime />
     <div className="flex min-h-screen bg-page">
       <a
         href="#main"
@@ -116,17 +120,20 @@ export function CommandShell({
 
           <div className="ml-auto flex shrink-0 items-center gap-2">
             <LiveStatus />
+            <SoundToggle />
             <RoleSwitcher />
             <ThemeToggle />
           </div>
         </header>
+
+        <ConnectionBanner />
 
         <main id="main" tabIndex={-1} className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">
           {children}
         </main>
 
         <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-line px-4 py-3 text-xs text-faint sm:px-6">
-          <span>Team GitBoosters · Code with Cisco Silver Flag CSR Challenge</span>
+          <span>Team GitBoosters · Edge early-warning for human-wildlife conflict</span>
           <BuildStamp />
         </footer>
       </div>

@@ -26,13 +26,15 @@ export function LiveStatus() {
       role="status"
       aria-label="Live data stream"
       title={`Live data stream: ${meta.label.toLowerCase()}`}
-      className="flex h-11 items-center gap-1.5 rounded-md border border-line px-2.5 text-xs text-muted"
+      className="flex h-11 items-center gap-1.5 rounded-md border border-line px-2 text-xs text-muted sm:px-2.5"
     >
       <span
         aria-hidden="true"
         className={`size-2 shrink-0 rounded-full ${meta.dotClass}`}
       />
-      {meta.label}
+      {/* Label stays in the a11y tree; hidden visually on the tight mobile
+          top bar (the reconnect banner surfaces a dropped stream in text). */}
+      <span className="sr-only sm:not-sr-only">{meta.label}</span>
     </span>
   );
 }
