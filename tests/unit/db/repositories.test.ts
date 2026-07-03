@@ -432,4 +432,100 @@ describe("database repositories", () => {
       database.close();
     }
   });
+
+  it("filters and pages events for the command event log", () => {
+    const database = createInMemoryDatabase();
+
+    try {
+      const repos = createRepositories(database.db);
+      const node: SensorNode = {
+        id: "n1",
+        name: "Village Boundary East",
+        kind: "village_boundary",
+        lat: 26.87,
+        lng: 88.85,
+        geofenceRadiusM: 1_800,
+        status: "healthy",
+        batteryPct: 80,
+        linkQualityPct: 90,
+        lastHeartbeatAt: null,
+        createdAt: "2026-07-01T00:00:00.000Z",
+      };
+      const otherNode: SensorNode = {
+        ...node,
+        id: "n2",
+        name: "Rail Crossing KM-47",
+        kind: "rail_crossing",
+      };
+      repos.nodes.upsert(node);
+      repos.nodes.upsert(otherNode);
+
+      const makeSignal = (id: string, nodeId: string, at: string): Signal => ({
+        id,
+        nodeId,
+        at,
+        source: "camera",
+        classification: "large_animal",
+        confidence: 0.62,
+        snapshotPath: null,
+        eventId: null,
+      });
+      repos.signals.insert(makeSignal("sig-a", "n1", "2026-07-01T00:00:00.000Z"));
+      repos.signals.insert(makeSignal("sig-b", "n1", "2026-07-02T00:00:00.000Z"));
+      repos.signals.insert(makeSignal("sig-c", "n1", "2026-07-03T00:00:00.000Z"));
+      repos.signals.insert(makeSignal("sig-d", "n2", "2026-07-04T00:00:00.000Z"));
+
+      const makeEvent = (
+        id: string,
+        nodeId: string,
+        openedAt: string,
+        state: IncursionEvent["state"],
+        leadSignalId: string,
+      ): IncursionEvent => ({
+        id,
+        nodeId,
+        openedAt,
+        state,
+        confirmedAt: state === "expired" ? null : openedAt,
+        resolvedAt: state === "resolved" ? "2026-07-05T00:00:00.000Z" : null,
+        speciesLabel: state === "expired" ? null : "elephant_class",
+        leadSignalId,
+        confirmSignalId: null,
+        firstDeliveryAt: null,
+      });
+      repos.events.insert(
+        makeEvent("ev-old", "n1", "2026-07-01T00:00:00.000Z", "resolved", "sig-a"),
+      );
+      repos.events.insert(
+        makeEvent("ev-mid", "n1", "2026-07-02T00:00:00.000Z", "confirmed", "sig-b"),
+      );
+      repos.events.insert(
+        makeEvent("ev-new", "n1", "2026-07-03T00:00:00.000Z", "resolved", "sig-c"),
+      );
+      repos.events.insert(
+        makeEvent("ev-other-node", "n2", "2026-07-04T00:00:00.000Z", "resolved", "sig-d"),
+      );
+
+      expect(
+        repos.events.listFiltered({ limit: 2, offset: 0 }).items.map((event) => event.id),
+      ).toEqual(["ev-other-node", "ev-new"]);
+      expect(repos.events.listFiltered({ limit: 2, offset: 0 }).total).toBe(4);
+      expect(
+        repos.events.listFiltered({ limit: 2, offset: 2 }).items.map((event) => event.id),
+      ).toEqual(["ev-mid", "ev-old"]);
+
+      const filtered = repos.events.listFiltered({
+        nodeId: "n1",
+        state: "resolved",
+        fromIso: "2026-07-02T00:00:00.000Z",
+        toIso: "2026-07-04T00:00:00.000Z",
+        limit: 10,
+        offset: 0,
+      });
+      expect(filtered.total).toBe(1);
+      expect(filtered.items.map((event) => event.id)).toEqual(["ev-new"]);
+    } finally {
+      database.close();
+    }
+  });
 });

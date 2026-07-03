@@ -1,9 +1,10 @@
-import { and, asc, desc, eq, gte, inArray, isNull, lt, or } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, isNull, lt, or } from "drizzle-orm";
 
 import { DEFAULT_SETTINGS } from "@/domain/types";
 import type {
   Alert,
   AlertStatus,
+  EventState,
   EventResponse,
   Heartbeat,
   IncursionEvent,
@@ -46,6 +47,15 @@ export interface AlertStatusPatch {
   deliveredAt?: string | null;
   failedReason?: string | null;
   isLive?: boolean;
+}
+
+export interface EventFilterOptions {
+  nodeId?: string;
+  state?: EventState;
+  fromIso?: string;
+  toIso?: string;
+  limit: number;
+  offset: number;
 }
 
 export function createRepositories(db: AppDatabase) {
@@ -185,6 +195,36 @@ export function createRepositories(db: AppDatabase) {
 
       list(): IncursionEvent[] {
         return db.select().from(events).orderBy(asc(events.openedAt)).all();
+      },
+
+      listFiltered(options: EventFilterOptions): {
+        items: IncursionEvent[];
+        total: number;
+      } {
+        const conditions = [
+          options.nodeId === undefined ? undefined : eq(events.nodeId, options.nodeId),
+          options.state === undefined ? undefined : eq(events.state, options.state),
+          options.fromIso === undefined ? undefined : gte(events.openedAt, options.fromIso),
+          options.toIso === undefined ? undefined : lt(events.openedAt, options.toIso),
+        ].filter((condition): condition is NonNullable<typeof condition> =>
+          condition !== undefined,
+        );
+        const where = conditions.length === 0 ? undefined : and(...conditions);
+        const total = (db
+          .select({ value: count() })
+          .from(events)
+          .where(where)
+          .get()?.value ?? 0);
+        const items = db
+          .select()
+          .from(events)
+          .where(where)
+          .orderBy(desc(events.openedAt), desc(events.id))
+          .limit(options.limit)
+          .offset(options.offset)
+          .all();
+
+        return { items, total };
       },
     },
 
