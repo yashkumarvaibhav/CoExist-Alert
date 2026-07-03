@@ -1,4 +1,16 @@
-import { and, asc, count, desc, eq, gte, inArray, isNull, lt, or } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gte,
+  inArray,
+  isNotNull,
+  isNull,
+  lt,
+  or,
+} from "drizzle-orm";
 
 import { DEFAULT_SETTINGS } from "@/domain/types";
 import type {
@@ -195,6 +207,21 @@ export function createRepositories(db: AppDatabase) {
 
       list(): IncursionEvent[] {
         return db.select().from(events).orderBy(asc(events.openedAt)).all();
+      },
+
+      listConfirmedBetween(fromIso: string, toIso: string): IncursionEvent[] {
+        return db
+          .select()
+          .from(events)
+          .where(
+            and(
+              isNotNull(events.confirmedAt),
+              gte(events.confirmedAt, fromIso),
+              lt(events.confirmedAt, toIso),
+            ),
+          )
+          .orderBy(asc(events.confirmedAt), asc(events.id))
+          .all();
       },
 
       listFiltered(options: EventFilterOptions): {

@@ -18,6 +18,8 @@
   },
   "dependencies": {
     "@fontsource-variable/newsreader": "^5.2.10",
+    "@visx/group": "^4.0.0",
+    "@visx/scale": "^4.0.0",
     "better-sqlite3": "^12.11.1",
     "drizzle-orm": "^0.45.2",
     "leaflet": "^1.9.4",

@@ -433,6 +433,107 @@ describe("database repositories", () => {
     }
   });
 
+  it("lists confirmed events by confirmed-at window for hotspot analytics", () => {
+    const database = createInMemoryDatabase();
+
+    try {
+      const repos = createRepositories(database.db);
+      const nodes: SensorNode[] = [
+        {
+          id: "n1",
+          name: "Village Boundary East",
+          kind: "village_boundary",
+          lat: 26.87,
+          lng: 88.85,
+          geofenceRadiusM: 1_800,
+          status: "healthy",
+          batteryPct: 80,
+          linkQualityPct: 90,
+          lastHeartbeatAt: null,
+          createdAt: "2026-06-01T00:00:00.000Z",
+        },
+        {
+          id: "n2",
+          name: "Rail Crossing KM-47",
+          kind: "rail_crossing",
+          lat: 26.89,
+          lng: 88.89,
+          geofenceRadiusM: 2_200,
+          status: "healthy",
+          batteryPct: 86,
+          linkQualityPct: 94,
+          lastHeartbeatAt: null,
+          createdAt: "2026-06-01T00:00:00.000Z",
+        },
+      ];
+      for (const node of nodes) repos.nodes.upsert(node);
+
+      const makeSignal = (id: string, nodeId: string, at: string): Signal => ({
+        id,
+        nodeId,
+        at,
+        source: "camera",
+        classification: "large_animal",
+        confidence: 0.72,
+        snapshotPath: null,
+        eventId: null,
+      });
+
+      const signals = [
+        makeSignal("sig-old", "n1", "2026-06-02T23:00:00.000Z"),
+        makeSignal("sig-dawn", "n2", "2026-06-03T00:00:00.000Z"),
+        makeSignal("sig-dusk", "n2", "2026-07-02T12:00:00.000Z"),
+        makeSignal("sig-boundary", "n1", "2026-07-03T00:00:00.000Z"),
+        makeSignal("sig-open", "n1", "2026-07-01T00:00:00.000Z"),
+      ];
+      for (const signal of signals) repos.signals.insert(signal);
+
+      const makeEvent = (
+        id: string,
+        nodeId: string,
+        leadSignalId: string,
+        confirmedAt: string | null,
+      ): IncursionEvent => ({
+        id,
+        nodeId,
+        openedAt: confirmedAt ?? "2026-07-01T00:00:00.000Z",
+        state: confirmedAt === null ? "unconfirmed" : "resolved",
+        confirmedAt,
+        resolvedAt:
+          confirmedAt === null ? null : new Date(new Date(confirmedAt).getTime() + 60_000).toISOString(),
+        speciesLabel: confirmedAt === null ? null : "elephant_class",
+        leadSignalId,
+        confirmSignalId: null,
+        firstDeliveryAt: confirmedAt,
+      });
+
+      repos.events.insert(
+        makeEvent("ev-old", "n1", "sig-old", "2026-06-02T23:00:00.000Z"),
+      );
+      repos.events.insert(
+        makeEvent("ev-dawn", "n2", "sig-dawn", "2026-06-03T00:00:00.000Z"),
+      );
+      repos.events.insert(
+        makeEvent("ev-dusk", "n2", "sig-dusk", "2026-07-02T12:00:00.000Z"),
+      );
+      repos.events.insert(
+        makeEvent("ev-boundary", "n1", "sig-boundary", "2026-07-03T00:00:00.000Z"),
+      );
+      repos.events.insert(makeEvent("ev-open", "n1", "sig-open", null));
+
+      expect(
+        repos.events
+          .listConfirmedBetween(
+            "2026-06-03T00:00:00.000Z",
+            "2026-07-03T00:00:00.000Z",
+          )
+          .map((event) => event.id),
+      ).toEqual(["ev-dawn", "ev-dusk"]);
+    } finally {
+      database.close();
+    }
+  });
+
   it("filters and pages events for the command event log", () => {
     const database = createInMemoryDatabase();
 
