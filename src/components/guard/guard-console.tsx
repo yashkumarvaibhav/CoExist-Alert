@@ -510,7 +510,8 @@ export function GuardConsole({
   const nodeById = new Map(nodes.map((node) => [node.id, node]));
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] lg:items-start">
+      <div className="flex min-w-0 flex-col gap-6">
       <section aria-label="Incoming alert" aria-live="assertive">
         {primary === null ? (
           <div className="rounded-lg border border-line bg-raised px-4 py-6 text-center">
@@ -580,7 +581,9 @@ export function GuardConsole({
           </ul>
         </section>
       )}
+      </div>
 
+      <div className="flex min-w-0 flex-col gap-6">
       <section
         aria-labelledby="shift-heading"
         className="rounded-lg border border-line bg-raised"
@@ -733,6 +736,7 @@ export function GuardConsole({
           </ul>
         )}
       </section>
+      </div>
     </div>
   );
 }

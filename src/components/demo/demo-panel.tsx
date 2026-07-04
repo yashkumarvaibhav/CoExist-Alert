@@ -251,6 +251,8 @@ export function DemoPanel({
         <HonestyChip mode="simulated" />
       </p>
 
+      <div className="flex flex-col gap-6 lg:grid lg:grid-cols-2 lg:items-start">
+      <div className="flex min-w-0 flex-col gap-6">
       <section
         aria-labelledby="presets-heading"
         className="rounded-lg border border-line bg-raised"
@@ -465,7 +467,9 @@ export function DemoPanel({
           })}
         </ul>
       </section>
+      </div>
 
+      <div className="flex min-w-0 flex-col gap-6">
       <section
         aria-labelledby="world-heading"
         className="rounded-lg border border-line bg-raised"
@@ -605,6 +609,8 @@ export function DemoPanel({
           </ol>
         )}
       </section>
+      </div>
+      </div>
     </div>
   );
 }

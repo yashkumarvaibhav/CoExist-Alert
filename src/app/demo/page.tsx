@@ -27,7 +27,7 @@ export default function DemoPanelPage() {
     sim.status === "not_started" ? [] : sim.killedNodeIds;
 
   return (
-    <StandaloneShell>
+    <StandaloneShell wide>
       <header>
         <h1 className="text-3xl">Demo control panel</h1>
         <p className="mt-1 text-sm text-muted">
