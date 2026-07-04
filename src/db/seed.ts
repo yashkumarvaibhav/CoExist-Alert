@@ -491,7 +491,15 @@ export function seedDatabase(db: AppDatabase): SeedSummary {
   for (const node of seedNodes) repos.nodes.upsert(node);
   for (const zone of seedZones) repos.villagerZones.upsert(zone);
   for (const responder of seedResponders) repos.responders.upsert(responder);
-  repos.settings.upsert(DEFAULT_SETTINGS);
+  // COEXIST_ESCALATION_TIMEOUT_S shortens the auto-escalation clock for demo
+  // rehearsals and tests (escalate in seconds instead of the 90s default);
+  // ignored unless it parses to a positive number.
+  const timeoutOverride = Number(process.env.COEXIST_ESCALATION_TIMEOUT_S);
+  const escalationTimeoutS =
+    Number.isFinite(timeoutOverride) && timeoutOverride > 0
+      ? timeoutOverride
+      : DEFAULT_SETTINGS.escalationTimeoutS;
+  repos.settings.upsert({ ...DEFAULT_SETTINGS, escalationTimeoutS });
 
   upsertHeartbeats(db, buildHeartbeats());
   upsertSignalsWithoutEvent(db, seededSignals);

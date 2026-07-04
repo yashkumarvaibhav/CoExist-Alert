@@ -21,6 +21,11 @@ import { useAlarm } from "@/hooks/use-alarm";
 import { useLiveStream } from "@/hooks/use-live-stream";
 import { useNowMs } from "@/hooks/use-now";
 import { hasActiveAlarm } from "@/lib/alarm";
+import {
+  escalationStatus,
+  isAckAfterEscalation,
+  isEscalatedToTier,
+} from "@/lib/escalation-view";
 import { deriveResponseProgress, RESPONSE_STEPS } from "@/lib/response-steps";
 import {
   formatCountdown,
@@ -42,6 +47,14 @@ export interface GuardResponderSeed {
   id: string;
   name: string;
   phoneLabel: string;
+  /** Ladder rung this persona sits on: tier 1 = first response, 2–3 = escalation. */
+  tier: AlertTier;
+}
+
+/** One rung of the responder ladder, for "escalated to/up" copy. */
+export interface GuardLadderRung {
+  tier: AlertTier;
+  name: string;
 }
 
 /** Simulated guard position — the distance fact is honest only with a label. */
@@ -240,6 +253,18 @@ function EscalationCountdown({
   );
 }
 
+/** Teeth: a distinct chip that appears the moment an event climbs past tier 1. */
+function EscalatedChip({ tier }: { tier: AlertTier }) {
+  return (
+    <span
+      data-escalated-chip="true"
+      className="inline-flex items-center gap-1 rounded-full border border-status-offline/40 bg-status-offline/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-status-offline"
+    >
+      Escalated · tier {tier}
+    </span>
+  );
+}
+
 function StepIcon({ state }: { state: "done" | "next" | "upcoming" }) {
   if (state === "done") {
     return (
@@ -281,6 +306,7 @@ function StepIcon({ state }: { state: "done" | "next" | "upcoming" }) {
 export function GuardConsole({
   responder,
   post,
+  ladder,
   nodes,
   initialEvents,
   initialSignals,
@@ -290,7 +316,8 @@ export function GuardConsole({
   focusEventId,
 }: {
   responder: GuardResponderSeed;
-  post: GuardPostSeed;
+  post: GuardPostSeed | null;
+  ladder: GuardLadderRung[];
   nodes: GuardNodeSeed[];
   initialEvents: GuardEventSeed[];
   initialSignals: GuardSignalSeed[];
@@ -497,6 +524,8 @@ export function GuardConsole({
             event={primary}
             node={nodeById.get(primary.nodeId) ?? null}
             post={post}
+            responder={responder}
+            ladder={ladder}
             signals={[...signals.values()].filter(
               (signal) => signal.eventId === primary.id,
             )}
@@ -523,25 +552,31 @@ export function GuardConsole({
             More active alerts
           </h2>
           <ul className="divide-y divide-line">
-            {others.map((event) => (
-              <li
-                key={event.id}
-                data-active-event-id={event.id}
-                className="flex items-center gap-3 px-4 py-2.5"
-              >
-                <span className="min-w-0 flex-1 truncate text-sm text-body">
-                  {prettyLabel(event.speciesLabel)} —{" "}
-                  {nodeById.get(event.nodeId)?.name ?? event.nodeId}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setFocusedId(event.id)}
-                  className="min-h-11 shrink-0 rounded-md border border-line px-3 text-sm font-medium text-accent hover:bg-hover"
+            {others.map((event) => {
+              const escalated = escalationStatus(
+                [...alerts.values()].filter((alert) => alert.eventId === event.id),
+              );
+              return (
+                <li
+                  key={event.id}
+                  data-active-event-id={event.id}
+                  className="flex items-center gap-3 px-4 py-2.5"
                 >
-                  View
-                </button>
-              </li>
-            ))}
+                  <span className="min-w-0 flex-1 truncate text-sm text-body">
+                    {prettyLabel(event.speciesLabel)} —{" "}
+                    {nodeById.get(event.nodeId)?.name ?? event.nodeId}
+                  </span>
+                  {escalated.escalated && <EscalatedChip tier={escalated.tier} />}
+                  <button
+                    type="button"
+                    onClick={() => setFocusedId(event.id)}
+                    className="min-h-11 shrink-0 rounded-md border border-line px-3 text-sm font-medium text-accent hover:bg-hover"
+                  >
+                    View
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         </section>
       )}
@@ -571,10 +606,16 @@ export function GuardConsole({
           </div>
           <div className="col-span-2">
             <dt className="text-xs uppercase tracking-[0.08em] text-faint">
-              Position
+              {post !== null ? "Position" : "Role"}
             </dt>
             <dd className="mt-0.5 flex flex-wrap items-center gap-2 text-body">
-              {post.label} <HonestyChip mode="simulated" />
+              {post !== null ? (
+                <>
+                  {post.label} <HonestyChip mode="simulated" />
+                </>
+              ) : (
+                `Tier ${responder.tier} · escalation responder`
+              )}
             </dd>
           </div>
         </dl>
@@ -606,11 +647,16 @@ export function GuardConsole({
                   {node.name}
                 </span>
                 <span className="block text-xs text-faint">
-                  {NODE_KIND_LABELS[node.kind]} ·{" "}
-                  {formatDistance(
-                    haversineMeters(post.lat, post.lng, node.lat, node.lng),
-                  )}{" "}
-                  away
+                  {NODE_KIND_LABELS[node.kind]}
+                  {post !== null && (
+                    <>
+                      {" · "}
+                      {formatDistance(
+                        haversineMeters(post.lat, post.lng, node.lat, node.lng),
+                      )}{" "}
+                      away
+                    </>
+                  )}
                 </span>
               </span>
               <StatusChip
@@ -695,6 +741,8 @@ function IncomingAlertCard({
   event,
   node,
   post,
+  responder,
+  ladder,
   signals,
   alerts,
   responses,
@@ -705,7 +753,9 @@ function IncomingAlertCard({
 }: {
   event: GuardEventSeed;
   node: GuardNodeSeed | null;
-  post: GuardPostSeed;
+  post: GuardPostSeed | null;
+  responder: GuardResponderSeed;
+  ladder: GuardLadderRung[];
   signals: GuardSignalSeed[];
   alerts: GuardAlertSeed[];
   responses: GuardResponseSeed[];
@@ -716,6 +766,12 @@ function IncomingAlertCard({
 }) {
   const progress = deriveResponseProgress(responses);
   const acknowledged = progress.completedAt.acknowledged !== undefined;
+
+  const escalation = escalationStatus(alerts);
+  const escalatedToMe = isEscalatedToTier(alerts, responder.tier);
+  const lateAck = isAckAfterEscalation(responses, alerts);
+  const rungName = (tier: number) =>
+    ladder.find((rung) => rung.tier === tier)?.name ?? `tier ${tier}`;
 
   const snapshot = [...signals]
     .sort((a, b) => b.at.localeCompare(a.at))
@@ -731,8 +787,29 @@ function IncomingAlertCard({
   return (
     <article
       data-incoming-event-id={event.id}
-      className="overflow-hidden rounded-lg border border-status-confirmed/40 bg-raised"
+      data-escalated={escalation.escalated ? "true" : "false"}
+      className={`overflow-hidden rounded-lg border bg-raised ${
+        escalation.escalated
+          ? "border-status-offline/50"
+          : "border-status-confirmed/40"
+      }`}
     >
+      {escalatedToMe && !acknowledged && (
+        <div
+          role="alert"
+          data-escalated-to-me="true"
+          className="flex flex-col gap-0.5 border-b border-status-offline/40 bg-status-offline/10 px-4 py-2.5"
+        >
+          <p className="text-sm font-semibold text-status-offline">
+            Escalated to you
+          </p>
+          <p className="text-xs text-body">
+            {rungName(responder.tier - 1)} did not respond in time —
+            responsibility is now yours.
+          </p>
+        </div>
+      )}
+
       {snapshot?.snapshotPath != null && (
         <Image
           src={snapshot.snapshotPath}
@@ -748,6 +825,7 @@ function IncomingAlertCard({
       <div className="flex flex-col gap-4 px-4 py-4">
         <div className="flex flex-wrap items-center gap-2">
           <StatusChip status={event.state} />
+          {escalation.escalated && <EscalatedChip tier={escalation.tier} />}
           {webexAlert !== undefined && (
             <span className="flex items-center gap-1.5 text-xs text-muted">
               Also via Webex{" "}
@@ -783,7 +861,7 @@ function IncomingAlertCard({
                 : "—"}
             </dd>
           </div>
-          {node !== null && (
+          {node !== null && post !== null && (
             <div className="col-span-2">
               <dt className="text-xs uppercase tracking-[0.08em] text-faint">
                 Distance
@@ -801,19 +879,35 @@ function IncomingAlertCard({
         </dl>
 
         {acknowledged ? (
-          <p className="text-sm font-medium text-status-resolved">
-            Escalation cancelled — acknowledged{" "}
-            <span className="tnum">
-              {formatIstTime(progress.completedAt.acknowledged as string)}
-            </span>{" "}
-            IST
-          </p>
+          <div className="flex flex-col gap-0.5">
+            <p className="text-sm font-medium text-status-resolved">
+              Escalation cancelled — acknowledged{" "}
+              <span className="tnum">
+                {formatIstTime(progress.completedAt.acknowledged as string)}
+              </span>{" "}
+              IST
+            </p>
+            {lateAck && (
+              <p className="text-xs font-medium text-status-offline">
+                Acknowledged after escalation to tier {escalation.tier} (
+                {rungName(escalation.tier)}).
+              </p>
+            )}
+          </div>
         ) : (
-          <EscalationCountdown
-            event={event}
-            alerts={alerts}
-            escalationTimeoutS={escalationTimeoutS}
-          />
+          <div className="flex flex-col gap-1">
+            <EscalationCountdown
+              event={event}
+              alerts={alerts}
+              escalationTimeoutS={escalationTimeoutS}
+            />
+            {escalation.escalated && responder.tier < escalation.tier && (
+              <p className="text-xs font-medium text-status-offline">
+                Escalated up to {rungName(escalation.tier)} — no acknowledgement
+                at your tier in time.
+              </p>
+            )}
+          </div>
         )}
 
         <ol className="flex flex-col gap-2" aria-label="Response steps">

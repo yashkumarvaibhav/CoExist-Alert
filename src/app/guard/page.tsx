@@ -4,11 +4,14 @@ import {
   GuardConsole,
   type GuardAlertSeed,
   type GuardEventSeed,
+  type GuardLadderRung,
+  type GuardPostSeed,
   type GuardResponseSeed,
   type GuardSignalSeed,
 } from "@/components/guard/guard-console";
 import { StandaloneShell } from "@/components/standalone-shell";
 import { getRuntimeRepositories } from "@/db/runtime";
+import type { Responder } from "@/domain/types";
 
 export const metadata: Metadata = {
   title: "Guard view — CoExist Alert",
@@ -16,19 +19,42 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-/** The demo guard persona — the role switcher stands in for auth (POC). */
-const GUARD_ID = "guard-sharma";
+/** Default persona — the role switcher stands in for auth (POC). */
+const DEFAULT_RESPONDER_ID = "guard-sharma";
 
 /**
- * Simulated field position for the distance fact (the POC has no device
- * GPS); rendered with a SIMULATED chip. Sits at the Uttar Madhupur school
- * hamlet — a plausible beat post between the two assigned nodes.
+ * Persona chrome per responder. The first-line beat officer carries a
+ * simulated field position (the distance fact is honest only with a labelled
+ * post at the Uttar Madhupur school hamlet); the escalation tiers coordinate
+ * remotely, so they show no beat post.
  */
-const GUARD_POST = {
-  label: "Uttar Madhupur beat post",
-  lat: 26.866,
-  lng: 88.842,
-};
+function personaChrome(responder: Responder): {
+  title: string;
+  subtitle: string;
+  post: GuardPostSeed | null;
+} {
+  if (responder.tier === 1) {
+    return {
+      title: "Guard view",
+      subtitle: "Mobile response console for beat officers — all times IST.",
+      post: { label: "Uttar Madhupur beat post", lat: 26.866, lng: 88.842 },
+    };
+  }
+  if (responder.role === "district_officer") {
+    return {
+      title: "District duty console",
+      subtitle:
+        "Final escalation tier — alerts arrive here when neither first nor rapid response answers. All times IST.",
+      post: null,
+    };
+  }
+  return {
+    title: "Range response console",
+    subtitle:
+      "Rapid-response console — alerts escalate here when the beat officer doesn't answer in time. All times IST.",
+    post: null,
+  };
+}
 
 const HISTORY_LIMIT = 8;
 
@@ -45,9 +71,28 @@ export default async function GuardViewPage({
       : null;
 
   const repos = getRuntimeRepositories();
-  const responder = repos.responders.findById(GUARD_ID);
 
-  if (responder === null) {
+  // Field responders form the escalation ladder (tier 1 → 3); the control-room
+  // desk lives on the Channels view, not here. The role switcher targets a
+  // persona via ?as=<id>; anything unknown falls back to the beat officer.
+  const fieldResponders = repos.responders
+    .list()
+    .filter((r) => r.role === "guard" || r.role === "district_officer")
+    .sort((a, b) => a.tier - b.tier);
+  const ladder: GuardLadderRung[] = fieldResponders.map((r) => ({
+    tier: r.tier,
+    name: r.name,
+  }));
+
+  const asParam = params.as;
+  const requestedId = typeof asParam === "string" ? asParam : null;
+  const responder =
+    fieldResponders.find((r) => r.id === requestedId) ??
+    fieldResponders.find((r) => r.id === DEFAULT_RESPONDER_ID) ??
+    fieldResponders[0] ??
+    null;
+
+  if (responder === undefined || responder === null) {
     return (
       <StandaloneShell>
         <header>
@@ -60,6 +105,8 @@ export default async function GuardViewPage({
       </StandaloneShell>
     );
   }
+
+  const chrome = personaChrome(responder);
 
   const nodes = repos.nodes
     .list()
@@ -126,18 +173,18 @@ export default async function GuardViewPage({
   return (
     <StandaloneShell sound>
       <header>
-        <h1 className="text-3xl">Guard view</h1>
-        <p className="mt-1 text-sm text-muted">
-          Mobile response console for beat officers — all times IST.
-        </p>
+        <h1 className="text-3xl">{chrome.title}</h1>
+        <p className="mt-1 text-sm text-muted">{chrome.subtitle}</p>
       </header>
       <GuardConsole
         responder={{
           id: responder.id,
           name: responder.name,
           phoneLabel: responder.phoneLabel,
+          tier: responder.tier,
         }}
-        post={GUARD_POST}
+        post={chrome.post}
+        ladder={ladder}
         nodes={nodes.map((node) => ({
           id: node.id,
           name: node.name,
