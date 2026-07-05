@@ -5,6 +5,7 @@ import type { EventResponse, IncursionEvent } from "@/domain/types";
 import type { createRepositories } from "@/db/repositories";
 import type { StreamEventDraft } from "@/stream/events";
 import { cancelEscalationForEvent } from "@/escalation/runtime";
+import { canProgressIncident } from "@/lib/escalation-view";
 
 type Repositories = ReturnType<typeof createRepositories>;
 
@@ -76,6 +77,20 @@ export function recordEventResponse(
   const responder = repos.responders.findById(payload.responderId);
   if (responder === null) {
     throw new ResponseError(404, "responder_not_found", "Responder not found.");
+  }
+
+  // Incident ownership: an acknowledgement claims the incident (or takes it
+  // over); once claimed, only the owner may progress it (en route / on site /
+  // resolve). A senior takes over by acknowledging, which becomes the newest
+  // ack and transfers ownership.
+  if (payload.action !== "acknowledged") {
+    if (!canProgressIncident(responder.id, repos.responses.listForEvent(event.id))) {
+      throw new ResponseError(
+        409,
+        "not_incident_owner",
+        "This incident is owned by another responder — take it over to act.",
+      );
+    }
   }
 
   const response = repos.responses.insert({

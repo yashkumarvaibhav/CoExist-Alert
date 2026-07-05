@@ -22,7 +22,10 @@ import { useLiveStream } from "@/hooks/use-live-stream";
 import { useNowMs } from "@/hooks/use-now";
 import { hasActiveAlarm } from "@/lib/alarm";
 import {
+  canProgressIncident,
   canRespondToEvent,
+  canTakeOverIncident,
+  currentOwnerId,
   escalationStatus,
   isAckAfterEscalation,
   isEscalatedToTier,
@@ -309,6 +312,7 @@ export function GuardConsole({
   responder,
   post,
   ladder,
+  responderNames,
   nodes,
   initialEvents,
   initialSignals,
@@ -320,6 +324,7 @@ export function GuardConsole({
   responder: GuardResponderSeed;
   post: GuardPostSeed | null;
   ladder: GuardLadderRung[];
+  responderNames: Record<string, string>;
   nodes: GuardNodeSeed[];
   initialEvents: GuardEventSeed[];
   initialSignals: GuardSignalSeed[];
@@ -530,6 +535,7 @@ export function GuardConsole({
             post={post}
             responder={responder}
             ladder={ladder}
+            responderNames={responderNames}
             signals={[...signals.values()].filter(
               (signal) => signal.eventId === primary.id,
             )}
@@ -750,6 +756,7 @@ function IncomingAlertCard({
   post,
   responder,
   ladder,
+  responderNames,
   signals,
   alerts,
   responses,
@@ -763,6 +770,7 @@ function IncomingAlertCard({
   post: GuardPostSeed | null;
   responder: GuardResponderSeed;
   ladder: GuardLadderRung[];
+  responderNames: Record<string, string>;
   signals: GuardSignalSeed[];
   alerts: GuardAlertSeed[];
   responses: GuardResponseSeed[];
@@ -784,6 +792,20 @@ function IncomingAlertCard({
     { id: responder.id, tier: responder.tier },
     alerts,
   );
+  // Incident ownership: the acknowledging responder owns the incident; everyone
+  // else is read-only until they explicitly take over. A senior can take over
+  // once the ladder has paged them.
+  const ownerId = currentOwnerId(responses);
+  const someoneElseOwns = ownerId !== null && ownerId !== responder.id;
+  const ownerName =
+    ownerId === null ? null : responderNames[ownerId] ?? "another responder";
+  const canProgress = canProgressIncident(responder.id, responses);
+  const canTakeOver = canTakeOverIncident(
+    { id: responder.id, tier: responder.tier },
+    responses,
+    alerts,
+  );
+  const canAct = canRespond && canProgress;
   const rungName = (tier: number) =>
     ladder.find((rung) => rung.tier === tier)?.name ?? `tier ${tier}`;
 
@@ -836,6 +858,32 @@ function IncomingAlertCard({
             Read-only until this escalates to your tier — you&rsquo;ll be paged
             if {rungName(responder.tier - 1)} doesn&rsquo;t respond in time.
           </p>
+        </div>
+      )}
+
+      {someoneElseOwns && (
+        <div
+          data-owned-by-other="true"
+          className="flex flex-col items-start gap-1 border-b border-line bg-hover px-4 py-2.5"
+        >
+          <p className="text-sm font-medium text-body">
+            Acknowledged by {ownerName}
+          </p>
+          <p className="text-xs text-muted">
+            {canTakeOver
+              ? "Situational awareness only — take over to act on this incident."
+              : "Situational awareness only — this incident is being handled."}
+          </p>
+          {canTakeOver && (
+            <button
+              type="button"
+              onClick={() => onRespond(event.id, "acknowledged")}
+              disabled={pendingAction !== null}
+              className="mt-1 h-9 rounded-md border border-accent px-3 text-sm font-medium text-accent hover:bg-accent-soft disabled:opacity-60"
+            >
+              {pendingAction === "acknowledged" ? "Taking over…" : "Take over incident"}
+            </button>
+          )}
         </div>
       )}
 
@@ -942,7 +990,7 @@ function IncomingAlertCard({
         <ol
           className="flex flex-col gap-2"
           aria-label="Response steps"
-          data-response-locked={canRespond ? "false" : "true"}
+          data-response-locked={canAct ? "false" : "true"}
         >
           {RESPONSE_STEPS.map((step) => {
             const at = progress.completedAt[step];
@@ -952,7 +1000,7 @@ function IncomingAlertCard({
                 <StepIcon
                   state={at !== undefined ? "done" : isNext ? "next" : "upcoming"}
                 />
-                {isNext && canRespond ? (
+                {isNext && canAct ? (
                   <button
                     type="button"
                     onClick={() => onRespond(event.id, step)}

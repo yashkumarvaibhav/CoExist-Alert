@@ -251,6 +251,49 @@ describe("event responder route", () => {
     });
   });
 
+  it("locks progression to the acknowledging owner and lets a senior take over by acknowledging", async () => {
+    const range: Responder = {
+      id: "range-alpha",
+      name: "Range RRT Alpha",
+      role: "district_officer",
+      tier: 2,
+      webexEmail: null,
+      phoneLabel: "Range radio",
+      nodeIds: ["n2"],
+    };
+    setupDatabase((repos) => {
+      repos.responders.upsert(range);
+    });
+
+    // Beat officer acknowledges -> owns the incident (event -> responding).
+    await postEventResponse(
+      jsonRequest({ responderId: responder.id, action: "acknowledged" }),
+      params(event.id),
+    );
+
+    // A different responder cannot progress it.
+    const blocked = await postEventResponse(
+      jsonRequest({ responderId: range.id, action: "resolved" }),
+      params(event.id),
+    );
+    expect(blocked.status).toBe(409);
+    expect(await readJson(blocked)).toMatchObject({ error: { code: "not_incident_owner" } });
+    expect(inspectDatabase((repos) => repos.events.findById("evt-1")?.state)).toBe("responding");
+
+    // Later, the senior takes over by acknowledging, then may resolve.
+    vi.setSystemTime(new Date(plusSeconds(T0, 90)));
+    await postEventResponse(
+      jsonRequest({ responderId: range.id, action: "acknowledged" }),
+      params(event.id),
+    );
+    const resolved = await postEventResponse(
+      jsonRequest({ responderId: range.id, action: "resolved" }),
+      params(event.id),
+    );
+    expect(resolved.status).toBe(200);
+    expect(inspectDatabase((repos) => repos.events.findById("evt-1")?.state)).toBe("resolved");
+  });
+
   it("rejects malformed actions without writing a response", async () => {
     setupDatabase();
 

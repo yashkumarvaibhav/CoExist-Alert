@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  canProgressIncident,
   canRespondToEvent,
+  canTakeOverIncident,
+  currentOwnerId,
   escalationStatus,
   firstEscalatedAt,
   highestDispatchedTier,
@@ -141,5 +144,54 @@ describe("tierLabel", () => {
     expect(tierLabel(1)).toMatch(/first/i);
     expect(tierLabel(2)).toMatch(/rapid/i);
     expect(tierLabel(3)).toMatch(/district/i);
+  });
+});
+
+describe("incident ownership", () => {
+  const acks = (entries: Array<[string, string, string]>) =>
+    entries.map(([responderId, action, at]) => ({ responderId, action, at }));
+
+  it("has no owner before any acknowledgement", () => {
+    expect(currentOwnerId([])).toBeNull();
+    expect(currentOwnerId(acks([["r1", "en_route", "2026-07-01T12:00:00.000Z"]]))).toBeNull();
+  });
+
+  it("owner is the responder who acknowledged", () => {
+    expect(
+      currentOwnerId(acks([["beat", "acknowledged", "2026-07-01T12:01:00.000Z"]])),
+    ).toBe("beat");
+  });
+
+  it("a later acknowledgement (take-over) transfers ownership", () => {
+    expect(
+      currentOwnerId(
+        acks([
+          ["beat", "acknowledged", "2026-07-01T12:01:00.000Z"],
+          ["beat", "en_route", "2026-07-01T12:02:00.000Z"],
+          ["range", "acknowledged", "2026-07-01T12:03:00.000Z"],
+        ]),
+      ),
+    ).toBe("range");
+  });
+
+  it("only the current owner may progress the incident", () => {
+    const responses = acks([["beat", "acknowledged", "2026-07-01T12:01:00.000Z"]]);
+    expect(canProgressIncident("beat", responses)).toBe(true);
+    expect(canProgressIncident("range", responses)).toBe(false);
+    // before anyone acknowledges there is no owner to lock against
+    expect(canProgressIncident("beat", [])).toBe(true);
+  });
+
+  it("a paged senior who is not the owner may take over; the owner and unpaged responders may not", () => {
+    const responses = acks([["beat", "acknowledged", "2026-07-01T12:01:00.000Z"]]);
+    const pagedRange = { id: "range", tier: 2 as const };
+    const rangeAlerts = [{ targetRef: "range" }]; // escalation paged the range officer
+    expect(canTakeOverIncident(pagedRange, responses, rangeAlerts)).toBe(true);
+    // the current owner does not "take over" from themselves
+    expect(canTakeOverIncident({ id: "beat", tier: 1 }, responses, rangeAlerts)).toBe(false);
+    // a senior who was never paged cannot take over
+    expect(canTakeOverIncident(pagedRange, responses, [])).toBe(false);
+    // no owner yet => nothing to take over
+    expect(canTakeOverIncident(pagedRange, [], rangeAlerts)).toBe(false);
   });
 });

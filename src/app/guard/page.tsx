@@ -83,6 +83,11 @@ export default async function GuardViewPage({
     tier: r.tier,
     name: r.name,
   }));
+  // Resolve any responder id (including the control-room desk) to a display
+  // name so the incident-ownership banner can name who holds it.
+  const responderNames: Record<string, string> = Object.fromEntries(
+    repos.responders.list().map((r) => [r.id, r.name]),
+  );
 
   const asParam = params.as;
   const requestedId = typeof asParam === "string" ? asParam : null;
@@ -186,6 +191,7 @@ export default async function GuardViewPage({
         }}
         post={chrome.post}
         ladder={ladder}
+        responderNames={responderNames}
         nodes={nodes.map((node) => ({
           id: node.id,
           name: node.name,

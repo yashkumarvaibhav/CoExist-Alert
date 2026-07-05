@@ -102,6 +102,58 @@ export function isAckAfterEscalation(
   return ack.at >= escalatedAt;
 }
 
+/** A responder action, for deriving incident ownership. */
+export interface OwnershipResponse {
+  responderId: string;
+  action: string;
+  at: string;
+}
+
+/**
+ * The responder who currently owns the incident: the most recent acknowledger,
+ * or null before anyone acknowledges. A senior "take over" is simply a fresh
+ * acknowledgement, so the latest ack always names the current owner.
+ */
+export function currentOwnerId(responses: readonly OwnershipResponse[]): string | null {
+  let ownerId: string | null = null;
+  let latestAt = "";
+  for (const response of responses) {
+    if (response.action === "acknowledged" && response.at > latestAt) {
+      latestAt = response.at;
+      ownerId = response.responderId;
+    }
+  }
+  return ownerId;
+}
+
+/**
+ * Whether a responder may progress the incident (en route / on site / resolve).
+ * Until someone acknowledges there is no owner to lock against, so it is open;
+ * once someone acknowledges, only that owner may progress — everyone else is
+ * read-only until they explicitly take over.
+ */
+export function canProgressIncident(
+  responderId: string,
+  responses: readonly OwnershipResponse[],
+): boolean {
+  const ownerId = currentOwnerId(responses);
+  return ownerId === null || ownerId === responderId;
+}
+
+/**
+ * Whether a responder may take over an incident owned by someone else: there is
+ * an owner, it is not them, and an alert has actually paged them (so a senior
+ * cannot grab an incident that never escalated to their tier).
+ */
+export function canTakeOverIncident(
+  responder: { id: string; tier: AlertTier },
+  responses: readonly OwnershipResponse[],
+  alerts: readonly TargetedAlert[],
+): boolean {
+  const ownerId = currentOwnerId(responses);
+  return ownerId !== null && ownerId !== responder.id && canRespondToEvent(responder, alerts);
+}
+
 /** The ladder rung a responder tier represents, for human-facing copy. */
 export function tierLabel(tier: AlertTier): string {
   switch (tier) {
