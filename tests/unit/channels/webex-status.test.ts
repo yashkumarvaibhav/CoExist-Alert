@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { webexStatusMarkdown } from "@/channels/adapters";
+import { postWebexStatusUpdate, webexStatusMarkdown } from "@/channels/adapters";
 
 describe("webexStatusMarkdown", () => {
   it("announces an acknowledgement with responder, species, node and time", () => {
@@ -41,5 +41,35 @@ describe("webexStatusMarkdown", () => {
       atLabel: "07:10 IST",
     });
     expect(md).toContain("large animal");
+  });
+});
+
+describe("postWebexStatusUpdate", () => {
+  const OLD_ENV = { ...process.env };
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    process.env = { ...OLD_ENV };
+  });
+
+  it("is a silent no-op (no network) when the bot token/room are not configured", async () => {
+    delete process.env.WEBEX_BOT_TOKEN;
+    delete process.env.WEBEX_ROOM_ID;
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+
+    const result = await postWebexStatusUpdate({
+      eventId: "evt-1",
+      action: "acknowledged",
+      responderName: "Beat Officer R. Sharma",
+      speciesLabel: "elephant",
+      nodeName: "Chalsa rail crossing",
+      atLabel: "18:42 IST",
+    });
+
+    expect(result).toEqual({ posted: false, isLive: false });
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });

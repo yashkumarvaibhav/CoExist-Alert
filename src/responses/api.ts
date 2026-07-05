@@ -29,6 +29,7 @@ async function notifyWebexStatus(
     const node = repos.nodes.findById(outcome.event.nodeId);
     const responder = repos.responders.findById(outcome.response.responderId);
     await postWebexStatusUpdate({
+      eventId: outcome.event.id,
       action,
       responderName: responder?.name ?? "A responder",
       speciesLabel: outcome.event.speciesLabel,
@@ -87,9 +88,11 @@ export async function handleEventResponsePost(
     const outcome = recordEventResponse(repos, eventId, payload);
     publishStreamEvents(outcome.streamEvents);
     if (payload.action === "acknowledged" || payload.action === "resolved") {
-      // Fire-and-forget on the persistent server so the guard's action stays
-      // instant; the space update lands a moment later.
-      void notifyWebexStatus(repos, outcome, payload.action);
+      // Awaited (not floated): work left pending after the response returns is
+      // not guaranteed to run in the App Router, which silently dropped the
+      // acknowledge post. postWebexStatusUpdate is time-bounded and swallows
+      // its own errors, so this stays fast and never fails recording.
+      await notifyWebexStatus(repos, outcome, payload.action);
     }
     return NextResponse.json({
       response: outcome.response,

@@ -169,6 +169,19 @@ function cleanFailureReason(reason: string, token: string): string {
   return reason.replaceAll(token, "[redacted]").slice(0, 240);
 }
 
+/**
+ * Maps an event to the id of its root Webex alert message so responder status
+ * updates post as threaded replies under the original alert card. In-memory
+ * and best-effort: a restart between the alert and the acknowledge just falls
+ * back to a top-level status message.
+ */
+const webexThreadRoots = new Map<string, string>();
+
+function rememberThreadRoot(eventId: string | null, messageId: unknown): void {
+  if (eventId === null || typeof messageId !== "string") return;
+  if (!webexThreadRoots.has(eventId)) webexThreadRoots.set(eventId, messageId);
+}
+
 function webexAdapter(): ChannelAdapter {
   const fallback = simulatedAdapter("guard_webex");
   return {
@@ -205,6 +218,13 @@ function webexAdapter(): ChannelAdapter {
           };
         }
 
+        try {
+          const body = (await response.json()) as { id?: unknown };
+          rememberThreadRoot(context.event?.id ?? null, body.id);
+        } catch {
+          // No root id captured; status updates will post at top level.
+        }
+
         return {
           status: "delivered",
           sentAt,
@@ -232,7 +252,8 @@ function webexAdapter(): ChannelAdapter {
  * two lifecycle-defining actions are posted (acknowledge, resolve) to keep the
  * space signal-dense.
  */
-export interface WebexStatusUpdate {
+/** Fields that render into a status message body. */
+export interface WebexStatusContent {
   action: "acknowledged" | "resolved";
   responderName: string;
   speciesLabel: string | null;
@@ -241,13 +262,18 @@ export interface WebexStatusUpdate {
   atLabel: string;
 }
 
+/** A status update to post, tied to its event so it can thread. */
+export interface WebexStatusUpdate extends WebexStatusContent {
+  eventId: string;
+}
+
 /** Pure markdown body for a responder status update — unit-testable. */
-export function webexStatusMarkdown(update: WebexStatusUpdate): string {
-  const species = update.speciesLabel ?? "large animal";
-  if (update.action === "acknowledged") {
-    return `**✅ Acknowledged — ${update.responderName}** is responding to the ${species} alert near ${update.nodeName}. (${update.atLabel})`;
+export function webexStatusMarkdown(content: WebexStatusContent): string {
+  const species = content.speciesLabel ?? "large animal";
+  if (content.action === "acknowledged") {
+    return `**✅ Acknowledged — ${content.responderName}** is responding to the ${species} alert near ${content.nodeName}. (${content.atLabel})`;
   }
-  return `**☑️ Resolved — ${species} near ${update.nodeName}** closed by ${update.responderName}. (${update.atLabel})`;
+  return `**☑️ Resolved — ${species} near ${content.nodeName}** closed by ${content.responderName}. (${content.atLabel})`;
 }
 
 export interface WebexStatusResult {
@@ -268,6 +294,13 @@ export async function postWebexStatusUpdate(
   if (token === undefined || token === "" || roomId === undefined || roomId === "") {
     return { posted: false, isLive: false };
   }
+  // Thread the reply under the event's original alert card when we know it.
+  const parentId = webexThreadRoots.get(update.eventId);
+  const messageBody: Record<string, string> = {
+    roomId,
+    markdown: webexStatusMarkdown(update),
+  };
+  if (parentId !== undefined) messageBody.parentId = parentId;
   try {
     const response = await fetch(WEBEX_MESSAGES_URL, {
       method: "POST",
@@ -275,7 +308,10 @@ export async function postWebexStatusUpdate(
         Authorization: `Bearer ${token}`,
         "content-type": "application/json",
       },
-      body: JSON.stringify({ roomId, markdown: webexStatusMarkdown(update) }),
+      body: JSON.stringify(messageBody),
+      // Bounded: the response path awaits this, so a slow/unreachable Webex
+      // must never hang the guard's acknowledge.
+      signal: AbortSignal.timeout(5_000),
     });
     return { posted: response.ok, isLive: true };
   } catch {
