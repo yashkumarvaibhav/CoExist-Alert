@@ -22,6 +22,7 @@ import { useLiveStream } from "@/hooks/use-live-stream";
 import { useNowMs } from "@/hooks/use-now";
 import { hasActiveAlarm } from "@/lib/alarm";
 import {
+  canRespondToEvent,
   escalationStatus,
   isAckAfterEscalation,
   isEscalatedToTier,
@@ -99,6 +100,7 @@ export interface GuardAlertSeed {
   channel: AlertChannel;
   status: AlertStatus;
   tier: AlertTier;
+  targetRef: string;
   queuedAt: string;
   isLive: boolean;
 }
@@ -402,6 +404,7 @@ export function GuardConsole({
             channel: a.channel,
             status: a.status,
             tier: a.tier,
+            targetRef: a.targetRef,
             queuedAt: a.queuedAt,
             isLive: a.isLive,
           });
@@ -774,6 +777,13 @@ function IncomingAlertCard({
   const escalation = escalationStatus(alerts);
   const escalatedToMe = isEscalatedToTier(alerts, responder.tier);
   const lateAck = isAckAfterEscalation(responses, alerts);
+  // Senior consoles (tier ≥ 2) are read-only situational awareness until the
+  // ladder actually reaches them — they cannot short-circuit escalation by
+  // acknowledging early. Tier 1 always owns first response.
+  const canRespond = canRespondToEvent(
+    { id: responder.id, tier: responder.tier },
+    alerts,
+  );
   const rungName = (tier: number) =>
     ladder.find((rung) => rung.tier === tier)?.name ?? `tier ${tier}`;
 
@@ -810,6 +820,21 @@ function IncomingAlertCard({
           <p className="text-xs text-body">
             {rungName(responder.tier - 1)} did not respond in time —
             responsibility is now yours.
+          </p>
+        </div>
+      )}
+
+      {!canRespond && !acknowledged && (
+        <div
+          data-awaiting-escalation="true"
+          className="flex flex-col gap-0.5 border-b border-line bg-hover px-4 py-2.5"
+        >
+          <p className="text-sm font-medium text-body">
+            Held by {rungName(responder.tier - 1)}
+          </p>
+          <p className="text-xs text-muted">
+            Read-only until this escalates to your tier — you&rsquo;ll be paged
+            if {rungName(responder.tier - 1)} doesn&rsquo;t respond in time.
           </p>
         </div>
       )}
@@ -914,7 +939,11 @@ function IncomingAlertCard({
           </div>
         )}
 
-        <ol className="flex flex-col gap-2" aria-label="Response steps">
+        <ol
+          className="flex flex-col gap-2"
+          aria-label="Response steps"
+          data-response-locked={canRespond ? "false" : "true"}
+        >
           {RESPONSE_STEPS.map((step) => {
             const at = progress.completedAt[step];
             const isNext = progress.nextAction === step;
@@ -923,7 +952,7 @@ function IncomingAlertCard({
                 <StepIcon
                   state={at !== undefined ? "done" : isNext ? "next" : "upcoming"}
                 />
-                {isNext ? (
+                {isNext && canRespond ? (
                   <button
                     type="button"
                     onClick={() => onRespond(event.id, step)}

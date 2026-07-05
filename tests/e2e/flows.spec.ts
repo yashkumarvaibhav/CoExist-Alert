@@ -441,3 +441,54 @@ test("full demo flow: preset on /demo, cascade on /command, ack on /guard, resol
   await command.close();
   await guard.close();
 });
+
+test("a senior console is read-only until the incident escalates to it", async ({
+  page,
+  request,
+}) => {
+  // Confirm an event on n2 — its first-line page goes to the beat officer
+  // (tier 1), NOT to the range officer (tier 2), so the range console must
+  // stay read-only situational awareness until the ladder reaches it.
+  const trigger = await request.post("/api/ingest/detection", {
+    data: {
+      nodeId: "n2",
+      at: new Date().toISOString(),
+      source: "camera",
+      classification: "elephant_class",
+      confidence: 0.92,
+      snapshotRef: "/demo-snapshots/n2-camera.svg",
+    },
+  });
+  expect(trigger.status()).toBe(202);
+  const { eventId, eventState } = (await trigger.json()) as {
+    eventId: string;
+    eventState: string;
+  };
+  expect(eventState).toBe("confirmed");
+
+  // Range officer (tier 2): sees the incident but the response controls are
+  // locked, with the "Held by" read-only banner and no Acknowledge action.
+  await page.goto("/guard?as=guard-rrt-alpha");
+  const seniorCard = page.locator(`[data-incoming-event-id="${eventId}"]`);
+  await expect(seniorCard).toBeVisible({ timeout: 10_000 });
+  await expect(seniorCard.locator('[data-response-locked="true"]')).toBeVisible();
+  await expect(seniorCard.getByText(/Held by/)).toBeVisible();
+  await expect(
+    seniorCard.getByRole("button", { name: "Acknowledge" }),
+  ).toHaveCount(0);
+
+  // Beat officer (tier 1, the paged first-line responder): can act.
+  await page.goto("/guard");
+  const beatCard = page.locator(`[data-incoming-event-id="${eventId}"]`);
+  await expect(beatCard).toBeVisible({ timeout: 10_000 });
+  await expect(beatCard.locator('[data-response-locked="false"]')).toBeVisible();
+  await expect(
+    beatCard.getByRole("button", { name: "Acknowledge" }),
+  ).toBeVisible();
+
+  // Cleanup — resolve as the first-line responder.
+  const cleanup = await request.post(`/api/events/${eventId}/respond`, {
+    data: { responderId: "guard-sharma", action: "resolved" },
+  });
+  expect(cleanup.ok()).toBeTruthy();
+});

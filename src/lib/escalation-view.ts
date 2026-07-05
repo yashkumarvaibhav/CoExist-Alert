@@ -63,6 +63,29 @@ export function isEscalatedToTier(
   return highestDispatchedTier(alerts) >= responderTier;
 }
 
+/** A dispatched alert's routing target — who it actually paged. */
+export interface TargetedAlert {
+  targetRef: string;
+}
+
+/**
+ * Whether a responder may act on the event yet. First-line responders (tier 1)
+ * always own first response; escalation tiers (2–3) hold read-only situational
+ * awareness until an alert has actually *paged them* — either because they are
+ * the node's own first-line target (a range officer can be first-line on a
+ * remote node) or because the ladder escalated to their tier. Gating on the
+ * dispatched target, not on the tier number, is what stops a senior from
+ * short-circuiting the ladder while still letting them act where they are the
+ * assigned responder.
+ */
+export function canRespondToEvent(
+  responder: { id: string; tier: AlertTier },
+  alerts: readonly TargetedAlert[],
+): boolean {
+  if (responder.tier <= 1) return true;
+  return alerts.some((alert) => alert.targetRef === responder.id);
+}
+
 /**
  * Whether the acknowledgement (if any) landed only after the event had already
  * escalated — used to tag a first-line responder's late ack. False when there

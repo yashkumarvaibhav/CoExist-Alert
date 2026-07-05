@@ -154,6 +154,7 @@ export default async function GuardViewPage({
       channel: alert.channel,
       status: alert.status,
       tier: alert.tier,
+      targetRef: alert.targetRef,
       queuedAt: alert.queuedAt,
       isLive: alert.isLive,
     })),

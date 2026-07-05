@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  canRespondToEvent,
   escalationStatus,
   firstEscalatedAt,
   highestDispatchedTier,
@@ -66,6 +67,41 @@ describe("isEscalatedToTier", () => {
   it("targets a tier-3 responder only once the event reaches tier 3", () => {
     expect(isEscalatedToTier(alerts, 3)).toBe(false);
     expect(isEscalatedToTier([...alerts, alert(3, "t2")], 3)).toBe(true);
+  });
+});
+
+describe("canRespondToEvent", () => {
+  const sharma = { id: "guard-sharma", tier: 1 as AlertTier };
+  const range = { id: "guard-rrt-alpha", tier: 2 as AlertTier };
+  const duty = { id: "district-duty-officer", tier: 3 as AlertTier };
+  const paged = (targetRef: string) => ({ targetRef });
+
+  it("always lets a first-line (tier 1) responder act, even before any page", () => {
+    expect(canRespondToEvent(sharma, [])).toBe(true);
+    expect(canRespondToEvent(sharma, [paged("guard-sharma")])).toBe(true);
+  });
+
+  it("locks a senior until an alert has paged them", () => {
+    expect(canRespondToEvent(range, [paged("guard-sharma")])).toBe(false);
+    expect(canRespondToEvent(duty, [paged("guard-sharma")])).toBe(false);
+  });
+
+  it("unlocks a senior once the ladder escalates to them", () => {
+    expect(
+      canRespondToEvent(range, [paged("guard-sharma"), paged("guard-rrt-alpha")]),
+    ).toBe(true);
+    expect(
+      canRespondToEvent(duty, [
+        paged("guard-sharma"),
+        paged("guard-rrt-alpha"),
+        paged("district-duty-officer"),
+      ]),
+    ).toBe(true);
+  });
+
+  it("unlocks a senior who is the node's own first-line target (e.g. range officer on a remote node)", () => {
+    // n3's first-line page goes straight to the range officer.
+    expect(canRespondToEvent(range, [paged("guard-rrt-alpha")])).toBe(true);
   });
 });
 
