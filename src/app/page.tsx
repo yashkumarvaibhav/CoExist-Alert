@@ -121,7 +121,7 @@ export default async function Home({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await searchParams;
-  // The middleware bounces signed-out visitors here with ?signin=1&next=… so the
+  // The request proxy bounces signed-out visitors here with ?signin=1&next=… so the
   // sign-in modal can open in place (no standalone login page).
   const signinOpen = params.signin === "1";
   const nextRaw = params.next;

@@ -7,10 +7,10 @@ import { roleHome, SESSION_COOKIE, verifySession } from "@/auth/session";
  * Auth + RBAC gate. Public routes pass; protected routes require a valid signed
  * session whose role is permitted. Unauthenticated page requests redirect to
  * the landing page with its sign-in modal open; API requests get 401/403 JSON.
- * Session signatures are verified with Web Crypto so this runs in the edge
- * runtime.
+ * Session signatures are verified with Web Crypto so this can run before a
+ * request reaches the app.
  */
-export async function middleware(request: NextRequest): Promise<NextResponse> {
+export async function proxy(request: NextRequest): Promise<NextResponse> {
   const { pathname, search } = request.nextUrl;
   const access = routeAccess(pathname);
   if (access.kind === "public") {

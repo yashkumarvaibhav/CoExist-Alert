@@ -1,8 +1,8 @@
 import { NextRequest } from "next/server";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { middleware } from "@/middleware";
 import { SESSION_COOKIE, signSession, type SessionPayload } from "@/auth/session";
+import { proxy } from "@/proxy";
 
 const adminSession: SessionPayload = {
   userId: "u-admin",
@@ -23,7 +23,7 @@ function configureDuo(): void {
   process.env.DUO_API_HOST = "api-example.duosecurity.com";
 }
 
-describe("auth middleware", () => {
+describe("auth proxy", () => {
   afterEach(() => {
     delete process.env.DUO_CLIENT_ID;
     delete process.env.DUO_CLIENT_SECRET;
@@ -31,9 +31,7 @@ describe("auth middleware", () => {
   });
 
   it("redirects unauthenticated page requests to the landing sign-in modal", async () => {
-    const response = await middleware(
-      new NextRequest("http://localhost/command/events?state=confirmed"),
-    );
+    const response = await proxy(new NextRequest("http://localhost/command/events?state=confirmed"));
 
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe(
@@ -42,7 +40,7 @@ describe("auth middleware", () => {
   });
 
   it("returns 401 JSON for unauthenticated protected API requests", async () => {
-    const response = await middleware(new NextRequest("http://localhost/api/export/events.ndjson"));
+    const response = await proxy(new NextRequest("http://localhost/api/export/events.ndjson"));
 
     expect(response.status).toBe(401);
     expect(await response.json()).toEqual({ error: "unauthenticated" });
@@ -52,7 +50,7 @@ describe("auth middleware", () => {
     configureDuo();
     const token = await signSession(adminSession, "coexist-dev-insecure-secret-change-me");
 
-    const response = await middleware(withSession("http://localhost/demo?scenario=rail", token));
+    const response = await proxy(withSession("http://localhost/demo?scenario=rail", token));
 
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe(
@@ -67,7 +65,7 @@ describe("auth middleware", () => {
       "coexist-dev-insecure-secret-change-me",
     );
 
-    const response = await middleware(withSession("http://localhost/demo", token));
+    const response = await proxy(withSession("http://localhost/demo", token));
 
     expect(response.status).toBe(200);
   });
@@ -76,7 +74,7 @@ describe("auth middleware", () => {
     configureDuo();
     const token = await signSession(adminSession, "coexist-dev-insecure-secret-change-me");
 
-    const response = await middleware(withSession("http://localhost/api/demo/scenario", token));
+    const response = await proxy(withSession("http://localhost/api/demo/scenario", token));
 
     expect(response.status).toBe(403);
     expect(await response.json()).toEqual({ error: "mfa_required" });

@@ -6,7 +6,7 @@ import { LoginForm } from "./login-form";
 
 /**
  * Sign-in entry point on the landing page: a button that opens an accessible
- * modal wrapping the login form. Auto-opens when the middleware bounces an
+ * modal wrapping the login form. Auto-opens when the request proxy bounces an
  * unauthenticated visitor here (`?signin=1`), preserving the `next` path.
  */
 export function SignInLauncher({

@@ -3,7 +3,7 @@ import { promisify } from "node:util";
 
 /**
  * Password hashing with Node's scrypt (server-only — imported by the login
- * route and the seed, never by middleware). Format: `scrypt$<saltHex>$<hashHex>`.
+ * route and the seed, never by the request proxy). Format: `scrypt$<saltHex>$<hashHex>`.
  */
 
 const scryptAsync = promisify(scrypt);

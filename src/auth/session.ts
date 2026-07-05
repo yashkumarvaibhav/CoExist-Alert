@@ -2,7 +2,7 @@
  * Session tokens for CoExist Alert auth. A token is `base64url(JSON payload)` +
  * "." + `base64url(HMAC-SHA256)`, signed with `AUTH_SECRET`. Signing/verifying
  * use Web Crypto only (no `node:crypto`) so this module is safe to import from
- * Next middleware regardless of runtime. Password hashing lives separately in
+ * the request proxy. Password hashing lives separately in
  * `password.ts` (Node scrypt), imported only by server routes/seed.
  */
 

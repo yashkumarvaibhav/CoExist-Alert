@@ -1,10 +1,10 @@
 import type { UserRole } from "./session";
 
 /**
- * Pure route-access policy, shared by the middleware and its tests. `public`
+ * Pure route-access policy, shared by the request proxy and its tests. `public`
  * routes need no session; `protected` routes require a session whose role is in
  * the allowed set. Anything unmatched defaults to public (static assets, the
- * landing page's images, etc. — the middleware matcher already excludes most).
+ * landing page's images, etc. — the proxy matcher already excludes most).
  */
 export type RouteAccess =
   | { kind: "public" }
