@@ -15,6 +15,8 @@ export interface SessionPayload {
   /** Linked field responder (guard consoles), when the role has one. */
   responderId: string | null;
   displayName: string;
+  /** True once Duo MFA is completed (only meaningful when Duo is configured). */
+  mfa?: boolean;
   /** Expiry, epoch seconds. */
   exp: number;
 }

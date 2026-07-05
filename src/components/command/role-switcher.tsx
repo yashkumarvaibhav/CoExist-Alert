@@ -60,7 +60,7 @@ export function RoleSwitcher() {
 
   async function signOut() {
     await fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
-    router.push("/login");
+    router.push("/");
     router.refresh();
   }
 

@@ -13,9 +13,9 @@ export function isApiPath(pathname: string): boolean {
 }
 
 export function routeAccess(pathname: string): RouteAccess {
-  // Public: landing, login, health/version monitoring, the Webex webhook (its
-  // own X-Spark-Signature auth — Webex's cloud calls it), and the auth endpoints.
-  if (pathname === "/" || pathname === "/login") return { kind: "public" };
+  // Public: landing, health/version monitoring, the Webex webhook (its own
+  // X-Spark-Signature auth — Webex's cloud calls it), and the auth endpoints.
+  if (pathname === "/") return { kind: "public" };
   if (pathname === "/api/version" || pathname === "/api/health") return { kind: "public" };
   if (pathname === "/api/webex/webhook") return { kind: "public" };
   if (pathname.startsWith("/api/auth/")) return { kind: "public" };

@@ -6,8 +6,9 @@ import { roleHome, SESSION_COOKIE, verifySession } from "@/auth/session";
 /**
  * Auth + RBAC gate. Public routes pass; protected routes require a valid signed
  * session whose role is permitted. Unauthenticated page requests redirect to
- * /login (with a next path); API requests get 401/403 JSON. Session signatures
- * are verified with Web Crypto so this runs in the edge runtime.
+ * the landing page with its sign-in modal open; API requests get 401/403 JSON.
+ * Session signatures are verified with Web Crypto so this runs in the edge
+ * runtime.
  */
 export async function middleware(request: NextRequest): Promise<NextResponse> {
   const { pathname, search } = request.nextUrl;
@@ -23,8 +24,8 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
     }
     const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    url.search = `?next=${encodeURIComponent(pathname + search)}`;
+    url.pathname = "/";
+    url.search = `?signin=1&next=${encodeURIComponent(pathname + search)}`;
     return NextResponse.redirect(url);
   }
 

@@ -3,10 +3,9 @@ import { describe, expect, it } from "vitest";
 import { isApiPath, routeAccess } from "@/auth/access";
 
 describe("routeAccess", () => {
-  it("leaves landing, login, health/version, webhook and auth endpoints public", () => {
+  it("leaves landing, health/version, webhook and auth endpoints public", () => {
     for (const path of [
       "/",
-      "/login",
       "/api/version",
       "/api/health",
       "/api/webex/webhook",

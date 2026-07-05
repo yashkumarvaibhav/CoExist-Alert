@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { BuildStamp } from "@/components/build-stamp";
+import { SignInLauncher } from "@/components/auth/sign-in-launcher";
 import { LandingScene } from "@/components/landing-scene";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { APP_NAME, APP_TAGLINE } from "@/lib/app-info";
@@ -77,8 +78,8 @@ const architecture = [
     stage: "Secure",
     product: "Duo · Secure Access · Umbrella",
     proof:
-      "The judged demo is deliberately open. Production access is designed to sit behind MFA, zero-trust access and DNS-layer protection.",
-    label: "ROADMAP",
+      "Every console now requires a signed-in account with role-based access. Admin-only controls stay behind operator credentials; Duo MFA is the Cisco step-up gate when configured.",
+    label: "LIVE",
   },
 ];
 
@@ -114,7 +115,18 @@ function HeroChip({ children }: { children: string }) {
   );
 }
 
-export default function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  // The middleware bounces signed-out visitors here with ?signin=1&next=… so the
+  // sign-in modal can open in place (no standalone login page).
+  const signinOpen = params.signin === "1";
+  const nextRaw = params.next;
+  const next = typeof nextRaw === "string" && nextRaw.startsWith("/") ? nextRaw : null;
+
   return (
     <div className="min-h-screen bg-page text-body">
       <a
@@ -148,6 +160,7 @@ export default function Home() {
             >
               Dashboard
             </Link>
+            <SignInLauncher defaultOpen={signinOpen} next={next} />
             <ThemeToggle />
           </div>
         </div>

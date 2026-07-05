@@ -56,7 +56,7 @@ export interface SeedSummary {
 
 /**
  * Demo console accounts. The read/respond roles share a shown password so
- * judges can sign in in one click (see the login page); the admin password is
+ * judges can sign in in one click from the landing modal; the admin password is
  * env-overridable (`COEXIST_ADMIN_PASSWORD`) and NOT displayed, keeping the
  * field-driving /demo controls behind a credential only the operator holds.
  */

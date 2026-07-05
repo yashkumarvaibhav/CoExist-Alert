@@ -44,12 +44,12 @@ export function LoginForm({ next }: { next: string | null }) {
   }
 
   return (
-    <div className="mx-auto flex min-h-[70vh] w-full max-w-md flex-col justify-center gap-6 px-4 py-10">
+    <div className="flex w-full flex-col gap-5 p-5 sm:p-6">
       <div>
-        <h1 className="font-serif text-3xl text-ink">Sign in</h1>
+        <h2 className="font-serif text-2xl text-ink">Sign in</h2>
         <p className="mt-1 text-sm text-muted">
-          CoExist Alert consoles require an account. Access is role-based — Duo MFA
-          is the production step for the operations console.
+          CoExist Alert consoles require an account. Access is role-based — Cisco
+          Duo MFA can guard the operations console when configured.
         </p>
       </div>
 

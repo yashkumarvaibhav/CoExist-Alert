@@ -64,7 +64,7 @@ test("landing page keeps event branding out and labels simulation honestly", asy
   }
   await expect(architecture.getByText("SIMULATED", { exact: true }).first()).toBeVisible();
   await expect(architecture.getByText("LIVE/SIMULATED")).toBeVisible();
-  await expect(architecture.getByText("ROADMAP")).toBeVisible();
+  await expect(architecture.getByText("LIVE", { exact: true })).toBeVisible();
 });
 
 test("landing page honors reduced-motion users", async ({ page }) => {
