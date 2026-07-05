@@ -27,6 +27,26 @@ CoExist Alert is an early-warning platform for the forest-village boundary and r
 
 **The star of the show is the alert cascade and network reliability, not ML.** Detection classification arrives from the edge already labelled with confidence — in production that inference runs *on the camera* (Meraki MV), not in this platform.
 
+## Screens
+
+The command dashboard in light and dark — one persistent process driving a live sensor map, a KPI strip, the event feed, the sensor-health board and active alert cascades:
+
+| Light | Dark |
+|---|---|
+| ![Command dashboard, light theme](docs/screenshots/command-dashboard.png) | ![Command dashboard, dark theme](docs/screenshots/command-dashboard-dark.png) |
+
+**Event proof timeline** — every event is auditable end to end: signal → cross-source confirmation → per-channel delivery → acknowledge → on site → resolved, with exact IST timestamps and deltas. Simulated channels are labelled; only real Webex sends read `LIVE`.
+
+![Event proof timeline](docs/screenshots/event-proof.png)
+
+**Analytics & hotspots** — a node × time-of-day risk heatmap plus reliability KPIs: median/p95 lead time, per-channel delivery success, response time, uptime and blind-spot minutes.
+
+![Analytics and hotspots](docs/screenshots/analytics.png)
+
+**Guard mobile view** — the beat officer's incoming-alert console with snapshot, distance from post, and the Acknowledge → En route → On site → Resolved response ladder.
+
+<p align="center"><img src="docs/screenshots/guard-alert.png" alt="Guard mobile view — incoming alert" width="360" /></p>
+
 ## Architecture
 
 ```
@@ -89,15 +109,17 @@ Cisco products are the solution architecture here, not a decoration — and we a
 
 ## Quickstart
 
-> Full setup lands with the persistence phase; the commands below are the target developer experience.
+Requires Node.js 20+ (built and tested on Node 24). SQLite is bundled — no database server to install.
 
 ```bash
 git clone https://github.com/yashkumarvaibhav/CoExist-Alert.git
 cd CoExist-Alert
 npm install
-npm run setup     # migrate + seed SQLite (coming with the persistence phase)
+npm run setup     # migrate + seed the local SQLite database
 npm run dev       # http://localhost:3021
 ```
+
+The seed loads the Dooars corridor demo: 3 sensor nodes, villager zones, responder tiers and a month of confirmed-event history, so every screen has live data on first load. Without Webex credentials the guard channel runs in labelled simulated mode — the full loop still works end to end.
 
 Production build: `npm run build && npm run start` (port 8021).
 Tests: `npm run test` (unit) · `npm run test:e2e` (Playwright).
