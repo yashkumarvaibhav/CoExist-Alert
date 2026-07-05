@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isApiPath, routeAccess } from "@/auth/access";
+import { duoEnabled, isApiPath, routeAccess } from "@/auth/access";
 
 describe("routeAccess", () => {
   it("leaves landing, health/version, webhook and auth endpoints public", () => {
@@ -21,12 +21,20 @@ describe("routeAccess", () => {
     expect(routeAccess("/command/events/e1")).toEqual({ kind: "protected", roles: ["command", "admin"] });
     expect(routeAccess("/guard")).toEqual({ kind: "protected", roles: ["guard", "command", "admin"] });
     expect(routeAccess("/channels")).toEqual({ kind: "protected", roles: ["control", "command", "admin"] });
-    expect(routeAccess("/demo")).toEqual({ kind: "protected", roles: ["admin"] });
+    expect(routeAccess("/demo")).toEqual({ kind: "protected", roles: ["admin"], mfa: true });
   });
 
   it("locks field-driving APIs to admin and shares stream/responses with console roles", () => {
-    expect(routeAccess("/api/ingest/detection")).toEqual({ kind: "protected", roles: ["admin"] });
-    expect(routeAccess("/api/demo/scenario")).toEqual({ kind: "protected", roles: ["admin"] });
+    expect(routeAccess("/api/ingest/detection")).toEqual({
+      kind: "protected",
+      roles: ["admin"],
+      mfa: true,
+    });
+    expect(routeAccess("/api/demo/scenario")).toEqual({
+      kind: "protected",
+      roles: ["admin"],
+      mfa: true,
+    });
     expect(routeAccess("/api/export/events.ndjson")).toEqual({ kind: "protected", roles: ["command", "admin"] });
     expect(routeAccess("/api/events/e1/respond")).toEqual({
       kind: "protected",
@@ -41,5 +49,16 @@ describe("routeAccess", () => {
   it("classifies API paths", () => {
     expect(isApiPath("/api/stream")).toBe(true);
     expect(isApiPath("/command")).toBe(false);
+  });
+
+  it("enables Duo only when all OIDC env values are present", () => {
+    expect(
+      duoEnabled({
+        DUO_CLIENT_ID: "client",
+        DUO_CLIENT_SECRET: "secret",
+        DUO_API_HOST: "api-example.duosecurity.com",
+      }),
+    ).toBe(true);
+    expect(duoEnabled({ DUO_CLIENT_ID: "client" })).toBe(false);
   });
 });

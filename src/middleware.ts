@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { isApiPath, routeAccess } from "@/auth/access";
+import { duoEnabled, isApiPath, routeAccess } from "@/auth/access";
 import { roleHome, SESSION_COOKIE, verifySession } from "@/auth/session";
 
 /**
@@ -36,6 +36,16 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     const url = request.nextUrl.clone();
     url.pathname = roleHome(session.role);
     url.search = "";
+    return NextResponse.redirect(url);
+  }
+
+  if (access.mfa && duoEnabled() && session.mfa !== true) {
+    if (isApiPath(pathname)) {
+      return NextResponse.json({ error: "mfa_required" }, { status: 403 });
+    }
+    const url = request.nextUrl.clone();
+    url.pathname = "/api/auth/duo/start";
+    url.search = `?next=${encodeURIComponent(pathname + search)}`;
     return NextResponse.redirect(url);
   }
 
