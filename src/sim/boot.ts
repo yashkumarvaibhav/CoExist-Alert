@@ -1,3 +1,4 @@
+import { reconcileWebexWebhook } from "@/channels/webex-webhook";
 import { getRuntimeRepositories } from "@/db/runtime";
 import { rebuildEscalationTimers, resetEscalationRuntime } from "@/escalation/runtime";
 import { sweepFieldState } from "@/ingest/service";
@@ -66,6 +67,14 @@ export async function startFieldRuntime(): Promise<void> {
   if (simulatorAutostartEnabled()) {
     simulator.start();
   }
+
+  // Fire-and-forget: ensure the Webex acknowledge webhook is registered. A
+  // no-op unless WEBEX_BOT_TOKEN + WEBEX_WEBHOOK_SECRET are set; never throws.
+  void reconcileWebexWebhook().then((status) => {
+    if (status === "created" || status === "error") {
+      console.log(`[webex-webhook] registration: ${status}`);
+    }
+  });
 }
 
 /** Test hook: stop the sweep interval and forget the boot flag. */

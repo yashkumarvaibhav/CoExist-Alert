@@ -20,7 +20,7 @@ type Repositories = ReturnType<typeof getRuntimeRepositories>;
  * so it reads as a running incident thread. Non-blocking and self-contained:
  * any failure is swallowed so a Webex hiccup never breaks recording a response.
  */
-async function notifyWebexStatus(
+export async function notifyWebexStatus(
   repos: Repositories,
   outcome: EventResponseOutcome,
   action: "acknowledged" | "resolved",

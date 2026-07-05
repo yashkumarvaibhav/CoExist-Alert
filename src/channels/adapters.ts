@@ -6,6 +6,7 @@ import type {
   SensorNode,
   Signal,
 } from "@/domain/types";
+import { webexAckButtonEnabled } from "./webex-webhook";
 
 export interface DeliveryResult {
   status: "delivered" | "failed";
@@ -99,7 +100,30 @@ function formatConfidence(signals: Signal[]): string {
   return latest === undefined ? "not reported" : `${Math.round(latest.confidence * 100)}%`;
 }
 
-function webexMessageBody(context: DeliveryContext, roomId: string) {
+/**
+ * Adaptive-card actions for the alert. Adds an in-Webex "Acknowledge"
+ * `Action.Submit` (which drives the real response pipeline via the incoming
+ * webhook) only when the webhook is configured AND we know which event and
+ * responder to attribute the ack to — otherwise the card stays link-only.
+ */
+function webexCardActions(context: DeliveryContext, map: string, guard: string) {
+  const actions: Array<Record<string, unknown>> = [
+    { type: "Action.OpenUrl", title: "Open map", url: map },
+    { type: "Action.OpenUrl", title: "Open guard view", url: guard },
+  ];
+  const eventId = context.event?.id;
+  const responderId = context.responder?.id;
+  if (webexAckButtonEnabled() && eventId !== undefined && responderId !== undefined) {
+    actions.unshift({
+      type: "Action.Submit",
+      title: "Acknowledge",
+      data: { coexistAction: "acknowledge", eventId, responderId },
+    });
+  }
+  return actions;
+}
+
+export function webexMessageBody(context: DeliveryContext, roomId: string) {
   const title = titleFor(context);
   const nodeName = context.node?.name ?? "Unknown node";
   const openedAt = context.event?.openedAt ?? "unknown";
@@ -144,10 +168,7 @@ function webexMessageBody(context: DeliveryContext, roomId: string) {
               ],
             },
           ],
-          actions: [
-            { type: "Action.OpenUrl", title: "Open map", url: map },
-            { type: "Action.OpenUrl", title: "Open guard view", url: guard },
-          ],
+          actions: webexCardActions(context, map, guard),
         },
       },
     ],

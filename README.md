@@ -140,6 +140,8 @@ COEXIST_PUBLIC_URL=https://coexist.yashkumarvaibhav.me
 
 Successful Webex sends are stored as `LIVE`; missing credentials fall back to a terminal simulated delivery, and Webex API errors are stored as failed deliveries with the API reason surfaced.
 
+**Acknowledge from inside Webex (optional).** Set `WEBEX_WEBHOOK_SECRET` to any strong random string to add an **Acknowledge** button to the alert card. On boot the app registers an `attachmentActions` incoming webhook with Webex pointing at `POST /api/webex/webhook` (the public URL must be reachable by Webex's cloud); each callback is authenticated by its `X-Spark-Signature` HMAC against the secret, then drives the same response pipeline as the in-app guard console — the tap acknowledges the event for real, cancels escalation, and threads a status reply under the alert. Leave the secret unset and nothing changes: no button, no webhook, and the endpoint is an inert no-op.
+
 ## Honesty rule
 
 Every simulated element in the UI carries a visible `SIMULATED` chip; only real Webex sends show `LIVE`. Demo data is a fictionalized composite inspired by the Dooars elephant corridor (North Bengal), clearly labelled. We never fake a live-hardware claim.
