@@ -9,6 +9,7 @@ import {
   type GuardResponseSeed,
   type GuardSignalSeed,
 } from "@/components/guard/guard-console";
+import { getCurrentSession } from "@/auth/server";
 import { StandaloneShell } from "@/components/standalone-shell";
 import { getRuntimeRepositories } from "@/db/runtime";
 import type { Responder } from "@/domain/types";
@@ -89,8 +90,16 @@ export default async function GuardViewPage({
     repos.responders.list().map((r) => [r.id, r.name]),
   );
 
+  // A guard is scoped to their own linked responder (no ?as= impersonation);
+  // command/admin may inspect any escalation tier via ?as=.
+  const session = await getCurrentSession();
   const asParam = params.as;
-  const requestedId = typeof asParam === "string" ? asParam : null;
+  const requestedId =
+    session?.role === "guard"
+      ? session.responderId
+      : typeof asParam === "string"
+        ? asParam
+        : null;
   const responder =
     fieldResponders.find((r) => r.id === requestedId) ??
     fieldResponders.find((r) => r.id === DEFAULT_RESPONDER_ID) ??

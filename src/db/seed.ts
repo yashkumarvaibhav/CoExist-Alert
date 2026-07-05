@@ -1,6 +1,8 @@
 import { count, eq } from "drizzle-orm";
 import { pathToFileURL } from "node:url";
 
+import { hashPasswordSync } from "@/auth/password";
+import type { UserRole } from "@/auth/session";
 import { DEFAULT_SETTINGS } from "@/domain/types";
 import type {
   Alert,
@@ -14,6 +16,7 @@ import type {
   SensorNode,
   Signal,
   SignalSource,
+  User,
   VillagerZone,
 } from "@/domain/types";
 
@@ -29,6 +32,7 @@ import {
   responders,
   responses,
   signals,
+  users,
   villagerZones,
 } from "./schema";
 
@@ -47,7 +51,38 @@ export interface SeedSummary {
   alerts: number;
   responses: number;
   outages: number;
+  users: number;
 }
+
+/**
+ * Demo console accounts. The read/respond roles share a shown password so
+ * judges can sign in in one click (see the login page); the admin password is
+ * env-overridable (`COEXIST_ADMIN_PASSWORD`) and NOT displayed, keeping the
+ * field-driving /demo controls behind a credential only the operator holds.
+ */
+const DEMO_PASSWORD = "coexist-demo";
+interface SeedUser {
+  id: string;
+  username: string;
+  role: UserRole;
+  responderId: string | null;
+  displayName: string;
+  password: string;
+}
+const seedUsers: SeedUser[] = [
+  { id: "user-commander", username: "commander", role: "command", responderId: null, displayName: "Command Center", password: DEMO_PASSWORD },
+  { id: "user-guard", username: "guard", role: "guard", responderId: "guard-sharma", displayName: "Beat Officer R. Sharma", password: DEMO_PASSWORD },
+  { id: "user-range", username: "range", role: "guard", responderId: "guard-rrt-alpha", displayName: "Range RRT Alpha", password: DEMO_PASSWORD },
+  { id: "user-control", username: "control", role: "control", responderId: "nfr-chalsa-control", displayName: "NFR Section Control", password: DEMO_PASSWORD },
+  {
+    id: "user-admin",
+    username: "admin",
+    role: "admin",
+    responderId: null,
+    displayName: "Operations Admin",
+    password: process.env.COEXIST_ADMIN_PASSWORD ?? "coexist-admin",
+  },
+];
 
 const seedNodes: SensorNode[] = [
   {
@@ -480,6 +515,7 @@ export function readSeedSummary(db: AppDatabase): SeedSummary {
     alerts: countValue(db.select({ value: count() }).from(alerts).get()),
     responses: countValue(db.select({ value: count() }).from(responses).get()),
     outages: countValue(db.select({ value: count() }).from(outages).get()),
+    users: countValue(db.select({ value: count() }).from(users).get()),
   };
 }
 
@@ -491,6 +527,18 @@ export function seedDatabase(db: AppDatabase): SeedSummary {
   for (const node of seedNodes) repos.nodes.upsert(node);
   for (const zone of seedZones) repos.villagerZones.upsert(zone);
   for (const responder of seedResponders) repos.responders.upsert(responder);
+  for (const user of seedUsers) {
+    const record: User = {
+      id: user.id,
+      username: user.username,
+      passwordHash: hashPasswordSync(user.password),
+      role: user.role,
+      responderId: user.responderId,
+      displayName: user.displayName,
+      createdAt: "2026-06-01T00:00:00.000Z",
+    };
+    repos.users.upsert(record);
+  }
   // COEXIST_ESCALATION_TIMEOUT_S shortens the auto-escalation clock for demo
   // rehearsals and tests (escalate in seconds instead of the 90s default);
   // ignored unless it parses to a positive number.

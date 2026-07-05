@@ -25,6 +25,7 @@ import type {
   SensorNode,
   Settings,
   Signal,
+  User,
   VillagerZone,
 } from "@/domain/types";
 
@@ -39,6 +40,7 @@ import {
   responses,
   settings as settingsTable,
   signals,
+  users,
   villagerZones,
 } from "./schema";
 
@@ -334,6 +336,31 @@ export function createRepositories(db: AppDatabase) {
 
       listForNode(nodeId: string): Responder[] {
         return this.list().filter((responder) => responder.nodeIds.includes(nodeId));
+      },
+    },
+
+    users: {
+      upsert(user: User): User {
+        return db
+          .insert(users)
+          .values(user)
+          .onConflictDoUpdate({ target: users.id, set: user })
+          .returning()
+          .get();
+      },
+
+      findByUsername(username: string): User | null {
+        return orNull(
+          db.select().from(users).where(eq(users.username, username)).get(),
+        );
+      },
+
+      list(): User[] {
+        return db.select().from(users).orderBy(asc(users.username)).all();
+      },
+
+      count(): number {
+        return db.select({ value: count() }).from(users).get()?.value ?? 0;
       },
     },
 

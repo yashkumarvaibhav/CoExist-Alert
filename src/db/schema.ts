@@ -9,6 +9,7 @@ import {
   text,
 } from "drizzle-orm/sqlite-core";
 
+import type { UserRole } from "@/auth/session";
 import type {
   AlertChannel,
   AlertStatus,
@@ -23,6 +24,22 @@ import type {
 } from "@/domain/types";
 
 const isoText = (name: string) => text(name).notNull();
+
+export const users = sqliteTable(
+  "users",
+  {
+    id: text("id").primaryKey(),
+    username: text("username").notNull().unique(),
+    passwordHash: text("password_hash").notNull(),
+    role: text("role").$type<UserRole>().notNull(),
+    responderId: text("responder_id"),
+    displayName: text("display_name").notNull(),
+    createdAt: isoText("created_at"),
+  },
+  (table) => [
+    check("users_role_check", sql`${table.role} in ('admin', 'command', 'guard', 'control')`),
+  ],
+);
 
 export const nodes = sqliteTable(
   "nodes",
@@ -261,6 +278,7 @@ export const schema = {
   responses,
   settings,
   signals,
+  users,
   villagerZones,
 };
 

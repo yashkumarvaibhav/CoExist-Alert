@@ -26,6 +26,7 @@ describe("demo seed", () => {
         alerts: 100,
         responses: 90,
         outages: 3,
+        users: 5,
       });
 
       const repos = createRepositories(database.db);

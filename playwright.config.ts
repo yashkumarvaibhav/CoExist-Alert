@@ -1,3 +1,5 @@
+import path from "node:path";
+
 import { defineConfig, devices } from "@playwright/test";
 
 // Test matrix per QA plan: chromium desktop 1440×900 + mobile 390×844,
@@ -5,6 +7,12 @@ import { defineConfig, devices } from "@playwright/test";
 // the full matrix runs locally.
 const desktop = { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } };
 const mobile = { ...devices["Desktop Chrome"], viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true };
+
+// The app requires auth (RBAC). The `setup` project signs in once as admin (who
+// can reach every console) and persists the session; every other project reuses
+// it so existing e2e can visit protected routes. Auth is unit-covered too.
+const storageState = path.join(__dirname, "playwright", ".auth", "admin.json");
+const IGNORE = /flows\.spec\.ts|auth\.setup\.ts/;
 
 export default defineConfig({
   testDir: "tests/e2e",
@@ -17,10 +25,11 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   projects: [
-    { name: "desktop-light", use: { ...desktop, colorScheme: "light" }, testIgnore: /flows\.spec\.ts/ },
-    { name: "desktop-dark", use: { ...desktop, colorScheme: "dark" }, testIgnore: /flows\.spec\.ts/ },
-    { name: "mobile-light", use: { ...mobile, colorScheme: "light" }, testIgnore: /flows\.spec\.ts/ },
-    { name: "mobile-dark", use: { ...mobile, colorScheme: "dark" }, testIgnore: /flows\.spec\.ts/ },
+    { name: "setup", testMatch: /auth\.setup\.ts/ },
+    { name: "desktop-light", use: { ...desktop, colorScheme: "light", storageState }, dependencies: ["setup"], testIgnore: IGNORE },
+    { name: "desktop-dark", use: { ...desktop, colorScheme: "dark", storageState }, dependencies: ["setup"], testIgnore: IGNORE },
+    { name: "mobile-light", use: { ...mobile, colorScheme: "light", storageState }, dependencies: ["setup"], testIgnore: IGNORE },
+    { name: "mobile-dark", use: { ...mobile, colorScheme: "dark", storageState }, dependencies: ["setup"], testIgnore: IGNORE },
     {
       // The persona journeys (guard + rail-control acknowledge) mutate shared
       // world state, so they run serially in one file at the guard spec's
@@ -33,6 +42,7 @@ export default defineConfig({
         isMobile: true,
         hasTouch: true,
         colorScheme: "light",
+        storageState,
       },
       testMatch: /flows\.spec\.ts/,
       dependencies: ["desktop-light"],

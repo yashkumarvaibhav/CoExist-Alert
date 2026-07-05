@@ -6,9 +6,23 @@
  * are ISO-8601 UTC strings throughout (rendered in IST at the UI layer).
  */
 
+import type { UserRole } from "@/auth/session";
+
 export type NodeKind = "village_boundary" | "rail_crossing" | "waterhole";
 export type NodeStatus = "healthy" | "degraded" | "offline";
 export type SignalSource = "camera" | "thermal" | "acoustic" | "motion";
+
+/** An authenticated console operator. Auth/RBAC entity (see src/auth). */
+export interface User {
+  id: string;
+  username: string;
+  passwordHash: string;
+  role: UserRole;
+  /** Linked field responder for guard consoles, when the role has one. */
+  responderId: string | null;
+  displayName: string;
+  createdAt: string;
+}
 export type EventState =
   | "unconfirmed"
   | "confirmed"
