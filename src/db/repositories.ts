@@ -297,6 +297,14 @@ export function createRepositories(db: AppDatabase) {
           .orderBy(asc(alerts.queuedAt), asc(alerts.id))
           .all();
       },
+
+      listAll(): Alert[] {
+        return db
+          .select()
+          .from(alerts)
+          .orderBy(asc(alerts.queuedAt), asc(alerts.id))
+          .all();
+      },
     },
 
     responders: {
@@ -365,6 +373,10 @@ export function createRepositories(db: AppDatabase) {
           .where(eq(responses.eventId, eventId))
           .orderBy(asc(responses.at))
           .all();
+      },
+
+      listAll(): EventResponse[] {
+        return db.select().from(responses).orderBy(asc(responses.at), asc(responses.id)).all();
       },
     },
 
