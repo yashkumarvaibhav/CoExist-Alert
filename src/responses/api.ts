@@ -1,14 +1,44 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 
+import { postWebexStatusUpdate } from "@/channels/adapters";
 import { getRuntimeRepositories } from "@/db/runtime";
+import { formatIstTime } from "@/lib/time";
 import { publishStreamEvents } from "@/stream/hub";
 
 import {
   eventResponsePayloadSchema,
+  type EventResponseOutcome,
   recordEventResponse,
   ResponseError,
 } from "./service";
+
+type Repositories = ReturnType<typeof getRuntimeRepositories>;
+
+/**
+ * Echo the two lifecycle-defining responder actions back into the Webex space
+ * so it reads as a running incident thread. Non-blocking and self-contained:
+ * any failure is swallowed so a Webex hiccup never breaks recording a response.
+ */
+async function notifyWebexStatus(
+  repos: Repositories,
+  outcome: EventResponseOutcome,
+  action: "acknowledged" | "resolved",
+): Promise<void> {
+  try {
+    const node = repos.nodes.findById(outcome.event.nodeId);
+    const responder = repos.responders.findById(outcome.response.responderId);
+    await postWebexStatusUpdate({
+      action,
+      responderName: responder?.name ?? "A responder",
+      speciesLabel: outcome.event.speciesLabel,
+      nodeName: node?.name ?? "field node",
+      atLabel: `${formatIstTime(outcome.response.at)} IST`,
+    });
+  } catch {
+    // Status updates are best-effort; the response is already recorded.
+  }
+}
 
 async function parseBody(request: Request) {
   let body: unknown;
@@ -52,9 +82,15 @@ export async function handleEventResponsePost(
   eventId: string,
 ): Promise<NextResponse> {
   try {
+    const repos = getRuntimeRepositories();
     const payload = await parseBody(request);
-    const outcome = recordEventResponse(getRuntimeRepositories(), eventId, payload);
+    const outcome = recordEventResponse(repos, eventId, payload);
     publishStreamEvents(outcome.streamEvents);
+    if (payload.action === "acknowledged" || payload.action === "resolved") {
+      // Fire-and-forget on the persistent server so the guard's action stays
+      // instant; the space update lands a moment later.
+      void notifyWebexStatus(repos, outcome, payload.action);
+    }
     return NextResponse.json({
       response: outcome.response,
       event: outcome.event,

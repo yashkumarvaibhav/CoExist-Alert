@@ -226,6 +226,63 @@ function webexAdapter(): ChannelAdapter {
   };
 }
 
+/**
+ * A responder action worth echoing back into the Webex space so the guard
+ * channel reads as a running incident thread, not a one-way siren. Only the
+ * two lifecycle-defining actions are posted (acknowledge, resolve) to keep the
+ * space signal-dense.
+ */
+export interface WebexStatusUpdate {
+  action: "acknowledged" | "resolved";
+  responderName: string;
+  speciesLabel: string | null;
+  nodeName: string;
+  /** Human-facing timestamp, already formatted (e.g. "18:42 IST"). */
+  atLabel: string;
+}
+
+/** Pure markdown body for a responder status update — unit-testable. */
+export function webexStatusMarkdown(update: WebexStatusUpdate): string {
+  const species = update.speciesLabel ?? "large animal";
+  if (update.action === "acknowledged") {
+    return `**✅ Acknowledged — ${update.responderName}** is responding to the ${species} alert near ${update.nodeName}. (${update.atLabel})`;
+  }
+  return `**☑️ Resolved — ${species} near ${update.nodeName}** closed by ${update.responderName}. (${update.atLabel})`;
+}
+
+export interface WebexStatusResult {
+  posted: boolean;
+  isLive: boolean;
+}
+
+/**
+ * Post a responder status update to the live Webex space. A no-op (never
+ * throws, `posted: false`) when the bot token/room are not configured, so the
+ * response flow is identical whether Webex runs live or in simulated fallback.
+ */
+export async function postWebexStatusUpdate(
+  update: WebexStatusUpdate,
+): Promise<WebexStatusResult> {
+  const token = process.env.WEBEX_BOT_TOKEN;
+  const roomId = process.env.WEBEX_ROOM_ID;
+  if (token === undefined || token === "" || roomId === undefined || roomId === "") {
+    return { posted: false, isLive: false };
+  }
+  try {
+    const response = await fetch(WEBEX_MESSAGES_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ roomId, markdown: webexStatusMarkdown(update) }),
+    });
+    return { posted: response.ok, isLive: true };
+  } catch {
+    return { posted: false, isLive: true };
+  }
+}
+
 const adapters: Record<AlertChannel, ChannelAdapter> = {
   siren: simulatedAdapter("siren"),
   villager_phone: simulatedAdapter("villager_phone"),
