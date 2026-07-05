@@ -1,6 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { postWebexStatusUpdate, webexStatusMarkdown } from "@/channels/adapters";
+import {
+  adapterForChannel,
+  postWebexStatusUpdate,
+  webexStatusMarkdown,
+  type DeliveryContext,
+} from "@/channels/adapters";
+import type { Alert, IncursionEvent } from "@/domain/types";
 
 describe("webexStatusMarkdown", () => {
   it("announces an acknowledgement with responder, species, node and time", () => {
@@ -71,5 +77,54 @@ describe("postWebexStatusUpdate", () => {
 
     expect(result).toEqual({ posted: false, isLive: false });
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe("Webex status threading", () => {
+  const OLD_ENV = { ...process.env };
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    process.env = { ...OLD_ENV, WEBEX_BOT_TOKEN: "tok", WEBEX_ROOM_ID: "room-1" };
+    // reset the globalThis-backed thread-root map so tests do not leak roots
+    (globalThis as unknown as Record<symbol, unknown>)[
+      Symbol.for("coexist-alert.webex-thread-roots")
+    ] = new Map<string, string>();
+  });
+
+  afterEach(() => {
+    process.env = { ...OLD_ENV };
+  });
+
+  it("threads the status update under the alert card captured on send", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ id: "root-1" }) } as Response)
+      .mockResolvedValueOnce({ ok: true, json: async () => ({}) } as Response);
+
+    const event = { id: "evt-1", nodeId: "n2", speciesLabel: "elephant_class" } as IncursionEvent;
+    const alert = { id: "al-1", channel: "guard_webex", queuedAt: "2026-07-01T12:00:33.000Z" } as Alert;
+    const context: DeliveryContext = {
+      event,
+      node: null,
+      responder: { id: "guard-1" } as DeliveryContext["responder"],
+      signals: [],
+    };
+
+    // 1) send the alert card -> captures its message id ("root-1") as the root
+    await adapterForChannel("guard_webex").dispatch(alert, context);
+    // 2) the acknowledge status must thread under that root via parentId
+    await postWebexStatusUpdate({
+      eventId: "evt-1",
+      action: "acknowledged",
+      responderName: "Beat Officer R. Sharma",
+      speciesLabel: "elephant_class",
+      nodeName: "Rail Crossing KM-47",
+      atLabel: "18:42 IST",
+    });
+
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    const statusBody = JSON.parse(String(fetchSpy.mock.calls[1][1]?.body));
+    expect(statusBody.parentId).toBe("root-1");
   });
 });

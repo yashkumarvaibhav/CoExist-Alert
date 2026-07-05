@@ -192,15 +192,32 @@ function cleanFailureReason(reason: string, token: string): string {
 
 /**
  * Maps an event to the id of its root Webex alert message so responder status
- * updates post as threaded replies under the original alert card. In-memory
- * and best-effort: a restart between the alert and the acknowledge just falls
- * back to a top-level status message.
+ * updates post as threaded replies under the original alert card.
+ *
+ * Backed by a `globalThis` singleton because the alert is dispatched from the
+ * ingest/simulator module graph while the acknowledge/resolve status posts from
+ * the response-route (and webhook) graph — Next.js compiles these separately,
+ * so a plain module-level Map would fork and the captured root id would be
+ * invisible to the poster, dropping every status update to a top-level message.
+ * Still in-memory: a process restart between the alert and the acknowledge
+ * falls back to a top-level status message.
  */
-const webexThreadRoots = new Map<string, string>();
+const THREAD_ROOTS_KEY = Symbol.for("coexist-alert.webex-thread-roots");
+const globalStore = globalThis as unknown as Record<symbol, unknown>;
+
+function webexThreadRoots(): Map<string, string> {
+  let roots = globalStore[THREAD_ROOTS_KEY] as Map<string, string> | undefined;
+  if (roots === undefined) {
+    roots = new Map<string, string>();
+    globalStore[THREAD_ROOTS_KEY] = roots;
+  }
+  return roots;
+}
 
 function rememberThreadRoot(eventId: string | null, messageId: unknown): void {
   if (eventId === null || typeof messageId !== "string") return;
-  if (!webexThreadRoots.has(eventId)) webexThreadRoots.set(eventId, messageId);
+  const roots = webexThreadRoots();
+  if (!roots.has(eventId)) roots.set(eventId, messageId);
 }
 
 function webexAdapter(): ChannelAdapter {
@@ -316,7 +333,7 @@ export async function postWebexStatusUpdate(
     return { posted: false, isLive: false };
   }
   // Thread the reply under the event's original alert card when we know it.
-  const parentId = webexThreadRoots.get(update.eventId);
+  const parentId = webexThreadRoots().get(update.eventId);
   const messageBody: Record<string, string> = {
     roomId,
     markdown: webexStatusMarkdown(update),
