@@ -6,6 +6,7 @@ import {
   buildSearchItems,
   filterSearchItems,
   flattenResults,
+  screenItemsForRole,
   type SearchItem,
 } from "@/lib/search";
 
@@ -113,6 +114,20 @@ describe("filterSearchItems", () => {
 
   it("returns an empty array when nothing matches", () => {
     expect(filterSearchItems(index, "zzzznotathing")).toEqual([]);
+  });
+});
+
+describe("screenItemsForRole", () => {
+  it("keeps admin-only demo controls out of the command role palette", () => {
+    expect(screenItemsForRole("command").map((item) => item.id)).not.toContain(
+      "screen-demo",
+    );
+  });
+
+  it("keeps the admin role able to navigate to demo controls", () => {
+    expect(screenItemsForRole("admin").map((item) => item.id)).toContain(
+      "screen-demo",
+    );
   });
 });
 

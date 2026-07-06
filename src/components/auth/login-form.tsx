@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 /** Read/respond demo accounts shown for one-click sign-in. Admin is not listed:
@@ -13,8 +12,13 @@ const DEMO_ACCOUNTS = [
 ] as const;
 const DEMO_PASSWORD = "coexist-demo";
 
+function safeLocalPath(path: string | null | undefined): string | null {
+  if (typeof path !== "string") return null;
+  if (!path.startsWith("/") || path.startsWith("//")) return null;
+  return path;
+}
+
 export function LoginForm({ next }: { next: string | null }) {
-  const router = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -35,8 +39,7 @@ export function LoginForm({ next }: { next: string | null }) {
         return;
       }
       const data = (await res.json()) as { home?: string };
-      router.push(next ?? data.home ?? "/command");
-      router.refresh();
+      window.location.assign(safeLocalPath(next) ?? safeLocalPath(data.home) ?? "/command");
     } catch {
       setError("Sign-in failed. Please try again.");
       setPending(false);

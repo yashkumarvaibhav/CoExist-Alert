@@ -1,3 +1,4 @@
+import { getCurrentSession } from "@/auth/server";
 import { CommandShell } from "@/components/command/command-shell";
 import { getRuntimeRepositories } from "@/db/runtime";
 import { buildSearchItems } from "@/lib/search";
@@ -8,9 +9,10 @@ export const dynamic = "force-dynamic";
 // Recent events surfaced in the search palette (reuses the S4 filter query).
 const SEARCH_EVENT_LIMIT = 50;
 
-export default function CommandLayout({
+export default async function CommandLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const session = await getCurrentSession();
   const repos = getRuntimeRepositories();
 
   const fullNodes = repos.nodes.list();
@@ -32,7 +34,12 @@ export default function CommandLayout({
     .map(({ id, state, nodeId }) => ({ id, state, nodeId }));
 
   return (
-    <CommandShell nodes={nodes} searchItems={searchItems} alarmEvents={alarmEvents}>
+    <CommandShell
+      nodes={nodes}
+      searchItems={searchItems}
+      role={session?.role ?? "command"}
+      alarmEvents={alarmEvents}
+    >
       {children}
     </CommandShell>
   );

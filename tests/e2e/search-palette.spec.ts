@@ -132,6 +132,29 @@ test("typing filters to a node and Enter navigates to it", async ({ page }) => {
   await expect(page).toHaveURL(/\/command\/nodes\/n3$/);
 });
 
+test("command role cannot see admin-only demo controls in the palette", async ({
+  page,
+}) => {
+  await page.context().clearCookies();
+  await page.goto("/?signin=1&next=/command");
+  await page
+    .getByRole("dialog", { name: "Sign in" })
+    .getByRole("button", { name: /Command Center/i })
+    .click();
+  await expect(page).toHaveURL(/\/command$/);
+  await expect(page.getByRole("status", { name: /live data stream/i })).toContainText(
+    "Live",
+    { timeout: 15_000 },
+  );
+
+  await page.getByRole("button", { name: /search.*command palette/i }).click();
+  const dialog = page.getByRole("dialog", { name: /search command console/i });
+  await dialog.getByRole("combobox").fill("demo");
+
+  await expect(dialog.getByRole("option", { name: /Demo controls/i })).toHaveCount(0);
+  await expect(dialog.getByText("No matches — try a node or species name.")).toBeVisible();
+});
+
 test("a query with no matches shows the guidance message", async ({ page }) => {
   await page.goto("/command");
   await page.getByRole("button", { name: /search.*command palette/i }).click();

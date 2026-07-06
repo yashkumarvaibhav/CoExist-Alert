@@ -83,6 +83,10 @@ function guardUrl(event: IncursionEvent | null): string {
   return `${publicBaseUrl()}${path}`;
 }
 
+function commandUrl(): string {
+  return `${publicBaseUrl()}/command`;
+}
+
 function latestSnapshot(signals: Signal[]): string {
   return [...signals]
     .reverse()
@@ -169,6 +173,58 @@ export function webexMessageBody(context: DeliveryContext, roomId: string) {
             },
           ],
           actions: webexCardActions(context, map, guard),
+        },
+      },
+    ],
+  };
+}
+
+export function webexBlindspotBody(
+  context: DeliveryContext,
+  roomId: string,
+  startedAt: string,
+) {
+  const nodeName = context.node?.name ?? "Unknown node";
+  const map = mapUrl(context.node);
+  const command = commandUrl();
+
+  return {
+    roomId,
+    markdown: `**CoExist Alert:** SIMULATED field outage — ${nodeName} offline\n\nCorridor blind. Dispatch patrol and inspect the field link.  \n[Open command dashboard](${command}) · [Open map](${map})`,
+    attachments: [
+      {
+        contentType: "application/vnd.microsoft.card.adaptive",
+        content: {
+          $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+          type: "AdaptiveCard",
+          version: "1.3",
+          body: [
+            {
+              type: "TextBlock",
+              text: "CoExist Alert",
+              weight: "bolder",
+              size: "medium",
+              wrap: true,
+            },
+            {
+              type: "TextBlock",
+              text: "SIMULATED field outage — corridor blind",
+              wrap: true,
+            },
+            {
+              type: "FactSet",
+              facts: [
+                { title: "Node", value: nodeName },
+                { title: "Started", value: startedAt },
+                { title: "Action", value: "Dispatch patrol and inspect link" },
+                { title: "Status", value: "Blind-spot ops alert" },
+              ],
+            },
+          ],
+          actions: [
+            { type: "Action.OpenUrl", title: "Open command dashboard", url: command },
+            { type: "Action.OpenUrl", title: "Open map", url: map },
+          ],
         },
       },
     ],
@@ -284,6 +340,64 @@ function webexAdapter(): ChannelAdapter {
   };
 }
 
+function blindspotOpsAdapter(): ChannelAdapter {
+  const fallback = simulatedAdapter("blindspot_ops");
+  return {
+    channel: "blindspot_ops",
+    async dispatch(alert, context) {
+      const token = process.env.WEBEX_BOT_TOKEN;
+      const roomId = process.env.WEBEX_ROOM_ID;
+      if (token === undefined || token === "" || roomId === undefined || roomId === "") {
+        return fallback.dispatch(alert, context);
+      }
+
+      const sentAt = nowIso();
+      try {
+        const response = await fetch(WEBEX_MESSAGES_URL, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify(webexBlindspotBody(context, roomId, alert.queuedAt)),
+          signal: AbortSignal.timeout(5_000),
+        });
+
+        if (!response.ok) {
+          const message = await errorMessage(response);
+          return {
+            status: "failed",
+            sentAt,
+            deliveredAt: null,
+            failedReason: cleanFailureReason(
+              `Webex API ${response.status}: ${message}`,
+              token,
+            ),
+            isLive: true,
+          };
+        }
+
+        return {
+          status: "delivered",
+          sentAt,
+          deliveredAt: sentAt,
+          failedReason: null,
+          isLive: true,
+        };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return {
+          status: "failed",
+          sentAt,
+          deliveredAt: null,
+          failedReason: cleanFailureReason(`Webex API request failed: ${message}`, token),
+          isLive: true,
+        };
+      }
+    },
+  };
+}
+
 /**
  * A responder action worth echoing back into the Webex space so the guard
  * channel reads as a running incident thread, not a one-way siren. Only the
@@ -362,7 +476,7 @@ const adapters: Record<AlertChannel, ChannelAdapter> = {
   villager_phone: simulatedAdapter("villager_phone"),
   guard_webex: webexAdapter(),
   control_room: simulatedAdapter("control_room"),
-  blindspot_ops: simulatedAdapter("blindspot_ops"),
+  blindspot_ops: blindspotOpsAdapter(),
 };
 
 export function adapterForChannel(channel: AlertChannel): ChannelAdapter {

@@ -295,7 +295,8 @@ function FeedCard({
             Corridor blind — {nodeName} offline
           </p>
           <p className="mt-1 text-xs text-muted">
-            Dispatch patrol · dark since {formatIstTime(item.startedAt)} IST
+            Ops alert sent · dispatch patrol · dark since{" "}
+            {formatIstTime(item.startedAt)} IST
           </p>
           <div className="mt-1.5">
             <StatusChip status="offline" />

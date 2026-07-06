@@ -15,6 +15,7 @@ import { ConfirmedAlarm, type AlarmSeedEvent } from "@/components/confirmed-alar
 import { ConnectionBanner } from "@/components/connection-banner";
 import { LiveStreamProvider } from "@/components/live-stream-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
+import type { UserRole } from "@/auth/session";
 import { APP_NAME } from "@/lib/app-info";
 
 /**
@@ -25,11 +26,13 @@ import { APP_NAME } from "@/lib/app-info";
 export function CommandShell({
   nodes,
   searchItems,
+  role,
   alarmEvents,
   children,
 }: {
   nodes: NavNode[];
   searchItems: SearchItem[];
+  role: UserRole;
   alarmEvents: AlarmSeedEvent[];
   children: React.ReactNode;
 }) {
@@ -145,7 +148,7 @@ export function CommandShell({
             </span>
           </Link>
 
-          <SearchPalette items={searchItems} />
+          <SearchPalette items={searchItems} role={role} />
 
           <div className="ml-auto flex shrink-0 items-center gap-1 max-lg:ml-0 sm:gap-2">
             <LiveStatus />

@@ -4,6 +4,7 @@ import type {
   SensorNode,
   VillagerZone,
 } from "@/domain/types";
+import type { UserRole } from "@/auth/session";
 
 /**
  * Global search palette index. Command surface only. The index is a snapshot
@@ -30,6 +31,8 @@ export interface SearchItem {
   hint?: string;
   /** Navigation target; omitted for informational rows (zones, responders). */
   href?: string;
+  /** Roles allowed to see and navigate this result; omitted means all roles. */
+  roles?: readonly UserRole[];
   /** Lowercased haystack for matching. */
   keywords: string;
 }
@@ -47,6 +50,7 @@ export const SCREEN_ITEMS: SearchItem[] = [
     label: "Command dashboard",
     hint: "Live map, KPIs and cascade status",
     href: "/command",
+    roles: ["command", "admin"],
     keywords: "command dashboard home map kpi live",
   },
   {
@@ -55,6 +59,7 @@ export const SCREEN_ITEMS: SearchItem[] = [
     label: "Events log",
     hint: "Filterable incursion history",
     href: "/command/events",
+    roles: ["command", "admin"],
     keywords: "events log history incursions timeline",
   },
   {
@@ -63,6 +68,7 @@ export const SCREEN_ITEMS: SearchItem[] = [
     label: "Analytics & hotspots",
     hint: "Hotspot heatmap and reliability KPIs",
     href: "/command/analytics",
+    roles: ["command", "admin"],
     keywords: "analytics hotspots heatmap reliability kpi trends",
   },
   {
@@ -71,6 +77,7 @@ export const SCREEN_ITEMS: SearchItem[] = [
     label: "Guard view",
     hint: "Mobile response console",
     href: "/guard",
+    roles: ["guard", "command", "admin"],
     keywords: "guard responder mobile acknowledge patrol",
   },
   {
@@ -79,6 +86,7 @@ export const SCREEN_ITEMS: SearchItem[] = [
     label: "Channels view",
     hint: "Villager phones and rail control",
     href: "/channels",
+    roles: ["control", "command", "admin"],
     keywords: "channels villager phone rail control targeting hamlet",
   },
   {
@@ -87,9 +95,21 @@ export const SCREEN_ITEMS: SearchItem[] = [
     label: "Demo controls",
     hint: "Drive the simulated field",
     href: "/demo",
+    roles: ["admin"],
     keywords: "demo controls simulate scenario preset reset",
   },
 ];
+
+export function searchItemsForRole(
+  items: readonly SearchItem[],
+  role: UserRole,
+): SearchItem[] {
+  return items.filter((item) => item.roles === undefined || item.roles.includes(role));
+}
+
+export function screenItemsForRole(role: UserRole): SearchItem[] {
+  return searchItemsForRole(SCREEN_ITEMS, role);
+}
 
 function prettify(token: string): string {
   return token

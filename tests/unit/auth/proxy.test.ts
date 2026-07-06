@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { SESSION_COOKIE, signSession, type SessionPayload } from "@/auth/session";
 import { proxy } from "@/proxy";
@@ -10,7 +10,14 @@ const adminSession: SessionPayload = {
   role: "admin",
   responderId: null,
   displayName: "Admin",
-  exp: Math.floor(Date.UTC(2026, 6, 5, 22, 0, 0) / 1000),
+  exp: Math.floor(Date.UTC(2100, 0, 1, 0, 0, 0) / 1000),
+};
+const TEST_AUTH_SECRET = "coexist-dev-insecure-secret-change-me";
+const ORIGINAL_ENV = {
+  AUTH_SECRET: process.env.AUTH_SECRET,
+  DUO_CLIENT_ID: process.env.DUO_CLIENT_ID,
+  DUO_CLIENT_SECRET: process.env.DUO_CLIENT_SECRET,
+  DUO_API_HOST: process.env.DUO_API_HOST,
 };
 
 function withSession(url: string, token: string): NextRequest {
@@ -24,10 +31,18 @@ function configureDuo(): void {
 }
 
 describe("auth proxy", () => {
-  afterEach(() => {
+  beforeEach(() => {
+    process.env.AUTH_SECRET = TEST_AUTH_SECRET;
     delete process.env.DUO_CLIENT_ID;
     delete process.env.DUO_CLIENT_SECRET;
     delete process.env.DUO_API_HOST;
+  });
+
+  afterEach(() => {
+    for (const [key, value] of Object.entries(ORIGINAL_ENV)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
   });
 
   it("redirects unauthenticated page requests to the landing sign-in modal", async () => {
@@ -48,7 +63,7 @@ describe("auth proxy", () => {
 
   it("redirects signed-in admin page requests to Duo when step-up is configured", async () => {
     configureDuo();
-    const token = await signSession(adminSession, "coexist-dev-insecure-secret-change-me");
+    const token = await signSession(adminSession, TEST_AUTH_SECRET);
 
     const response = await proxy(withSession("http://localhost/demo?scenario=rail", token));
 
@@ -62,7 +77,7 @@ describe("auth proxy", () => {
     configureDuo();
     const token = await signSession(
       { ...adminSession, mfa: true },
-      "coexist-dev-insecure-secret-change-me",
+      TEST_AUTH_SECRET,
     );
 
     const response = await proxy(withSession("http://localhost/demo", token));
@@ -72,7 +87,7 @@ describe("auth proxy", () => {
 
   it("returns 403 JSON for protected APIs that need Duo step-up", async () => {
     configureDuo();
-    const token = await signSession(adminSession, "coexist-dev-insecure-secret-change-me");
+    const token = await signSession(adminSession, TEST_AUTH_SECRET);
 
     const response = await proxy(withSession("http://localhost/api/demo/scenario", token));
 

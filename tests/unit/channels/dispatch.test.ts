@@ -176,6 +176,8 @@ describe("channel dispatch service", () => {
   });
 
   it("dispatches one terminal blindspot ops alert per outage", async () => {
+    delete process.env.WEBEX_BOT_TOKEN;
+    delete process.env.WEBEX_ROOM_ID;
     const { database, repos } = setup();
     try {
       const outage: Outage = {
@@ -212,6 +214,64 @@ describe("channel dispatch service", () => {
       expect(repos.alerts.listForOutage(outage.id)).toHaveLength(1);
     } finally {
       database.close();
+    }
+  });
+
+  it("sends blindspot ops alerts to Webex live when credentials are present", async () => {
+    vi.setSystemTime(new Date("2026-07-02T05:10:02.500Z"));
+    process.env.WEBEX_BOT_TOKEN = "test-webex-token";
+    process.env.WEBEX_ROOM_ID = "room-123";
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ id: "msg-blindspot" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    const { database, repos } = setup();
+    try {
+      const outage: Outage = {
+        id: "out-1",
+        nodeId: "n2",
+        startedAt: "2026-07-02T05:10:00.000Z",
+        endedAt: null,
+        opsAlerted: true,
+      };
+      repos.outages.insert(outage);
+
+      const outcome = await dispatchBlindspotAlert(repos, outage, outage.startedAt);
+
+      expect(outcome.alerts[0]).toMatchObject({
+        eventId: null,
+        outageId: "out-1",
+        channel: "blindspot_ops",
+        targetRef: "n2",
+        status: "delivered",
+        sentAt: "2026-07-02T05:10:02.500Z",
+        deliveredAt: "2026-07-02T05:10:02.500Z",
+        failedReason: null,
+        isLive: true,
+      });
+      expect(fetchMock).toHaveBeenCalledOnce();
+      const [url, init] = fetchMock.mock.calls[0];
+      expect(url).toBe("https://webexapis.com/v1/messages");
+      expect(init?.headers).toMatchObject({
+        Authorization: "Bearer test-webex-token",
+        "content-type": "application/json",
+      });
+      const body = JSON.parse(init?.body as string) as {
+        roomId: string;
+        markdown: string;
+        attachments: Array<{ contentType: string; content: unknown }>;
+      };
+      expect(body.roomId).toBe("room-123");
+      expect(body.markdown).toContain("SIMULATED field outage");
+      expect(body.markdown).toContain("Rail Crossing KM-47");
+      expect(body.markdown).toContain("Dispatch patrol");
+      expect(JSON.stringify(body.attachments[0].content)).toContain("Blind-spot ops alert");
+      expect(JSON.stringify(body)).not.toContain("test-webex-token");
+    } finally {
+      database.close();
+      vi.useRealTimers();
     }
   });
 

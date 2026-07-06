@@ -78,8 +78,8 @@ const architecture = [
     stage: "Secure",
     product: "Duo · Secure Access · Umbrella",
     proof:
-      "Every console now requires a signed-in account with role-based access. Admin-only controls stay behind operator credentials; Duo MFA is the Cisco step-up gate when configured.",
-    label: "LIVE",
+      "Every console requires a signed-in account with role-based access. Duo MFA is implemented as an optional step-up gate and kept dormant for the public demo so reviewers can enter without third-party MFA friction.",
+    label: "LIVE/DORMANT",
   },
 ];
 
@@ -125,7 +125,12 @@ export default async function Home({
   // sign-in modal can open in place (no standalone login page).
   const signinOpen = params.signin === "1";
   const nextRaw = params.next;
-  const next = typeof nextRaw === "string" && nextRaw.startsWith("/") ? nextRaw : null;
+  const next =
+    typeof nextRaw === "string" &&
+    nextRaw.startsWith("/") &&
+    !nextRaw.startsWith("//")
+      ? nextRaw
+      : null;
 
   return (
     <div className="min-h-screen bg-page text-body">
@@ -160,7 +165,11 @@ export default async function Home({
             >
               Dashboard
             </Link>
-            <SignInLauncher defaultOpen={signinOpen} next={next} />
+            <SignInLauncher
+              key={`${signinOpen ? "open" : "closed"}:${next ?? ""}`}
+              defaultOpen={signinOpen}
+              next={next}
+            />
             <ThemeToggle />
           </div>
         </div>

@@ -64,7 +64,36 @@ test("landing page keeps event branding out and labels simulation honestly", asy
   }
   await expect(architecture.getByText("SIMULATED", { exact: true }).first()).toBeVisible();
   await expect(architecture.getByText("LIVE/SIMULATED")).toBeVisible();
-  await expect(architecture.getByText("LIVE", { exact: true })).toBeVisible();
+  await expect(architecture.getByText("LIVE/DORMANT")).toBeVisible();
+});
+
+test("protected landing CTAs open the in-place sign-in modal", async ({ page }) => {
+  await page.context().clearCookies();
+  await page.goto("/");
+
+  await page.getByRole("link", { name: "Open command dashboard" }).click();
+
+  await expect(page).toHaveURL(/\/\?signin=1&next=%2Fcommand$/);
+  const dialog = page.getByRole("dialog", { name: "Sign in" });
+  await expect(dialog).toBeVisible();
+  await expect(
+    dialog.getByRole("button", { name: /Command Center/i }),
+  ).toBeVisible();
+});
+
+test("one-click demo sign-in lands inside the requested console", async ({ page }) => {
+  await page.context().clearCookies();
+  await page.goto("/");
+
+  await page.getByRole("link", { name: "Open command dashboard" }).click();
+  await page.getByRole("dialog", { name: "Sign in" })
+    .getByRole("button", { name: /Command Center/i })
+    .click();
+
+  await expect(page).toHaveURL(/\/command$/);
+  await expect(
+    page.getByRole("status", { name: /live data stream/i }),
+  ).toContainText("Live", { timeout: 15_000 });
 });
 
 test("landing page honors reduced-motion users", async ({ page }) => {

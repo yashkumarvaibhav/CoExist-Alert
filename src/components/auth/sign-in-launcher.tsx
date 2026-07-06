@@ -1,8 +1,27 @@
 "use client";
 
-import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 
 import { LoginForm } from "./login-form";
+
+function clearSignInQuery() {
+  const url = new URL(window.location.href);
+  if (url.searchParams.get("signin") !== "1") return;
+  url.searchParams.delete("signin");
+  url.searchParams.delete("next");
+  const query = url.searchParams.toString();
+  window.history.replaceState(
+    null,
+    "",
+    `${url.pathname}${query === "" ? "" : `?${query}`}${url.hash}`,
+  );
+}
 
 /**
  * Sign-in entry point on the landing page: a button that opens an accessible
@@ -22,10 +41,11 @@ export function SignInLauncher({
   const panelRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
-  function closeModal() {
+  const closeModal = useCallback(() => {
     setOpen(false);
+    clearSignInQuery();
     window.setTimeout(() => triggerRef.current?.focus(), 0);
-  }
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -39,7 +59,7 @@ export function SignInLauncher({
       panel?.querySelector<HTMLElement>("input, button");
     firstField?.focus();
     return () => document.removeEventListener("keydown", onKey);
-  }, [open]);
+  }, [closeModal, open]);
 
   function onDialogKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
     if (event.key !== "Tab") return;

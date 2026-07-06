@@ -5,11 +5,13 @@ import { createPortal } from "react-dom";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 
 import {
-  SCREEN_ITEMS,
   filterSearchItems,
   flattenResults,
+  screenItemsForRole,
+  searchItemsForRole,
   type SearchItem,
 } from "@/lib/search";
+import type { UserRole } from "@/auth/session";
 
 /**
  * Global command palette (⌘K / Ctrl+K, plus `/` when no field is focused).
@@ -18,7 +20,7 @@ import {
  * surface only. `items` is the server-built dynamic index; the static Screens
  * list is merged in here.
  */
-export function SearchPalette({ items }: { items: SearchItem[] }) {
+export function SearchPalette({ items, role }: { items: SearchItem[]; role: UserRole }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -33,7 +35,10 @@ export function SearchPalette({ items }: { items: SearchItem[] }) {
   const listboxId = `${baseId}-listbox`;
   const optionId = (index: number) => `${baseId}-option-${index}`;
 
-  const allItems = useMemo(() => [...SCREEN_ITEMS, ...items], [items]);
+  const allItems = useMemo(
+    () => [...screenItemsForRole(role), ...searchItemsForRole(items, role)],
+    [items, role],
+  );
   const results = useMemo(() => filterSearchItems(allItems, query), [allItems, query]);
   const flat = useMemo(() => flattenResults(results), [results]);
 

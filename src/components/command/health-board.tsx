@@ -244,7 +244,10 @@ export function HealthBoard({
               </div>
               {blind && (
                 <p className="text-sm font-medium text-status-offline">
-                  Corridor blind — dispatch patrol
+                  Corridor blind —{" "}
+                  {outage !== undefined
+                    ? "ops alert sent; dispatch patrol"
+                    : "dispatch patrol"}
                   {outage !== undefined && (
                     <span className="ml-2 font-normal text-muted">
                       blind for <BlindMinutes since={outage.startedAt} />
