@@ -169,7 +169,7 @@ test.describe("blind spot journey", () => {
         timeout: 90_000,
       });
       await expect(
-        row.getByText("Corridor blind — dispatch patrol"),
+        row.getByText(/Corridor blind — ops alert sent; dispatch patrol/),
       ).toBeVisible();
       await expect(
         page
