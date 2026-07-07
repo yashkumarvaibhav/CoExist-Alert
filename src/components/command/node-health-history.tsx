@@ -119,9 +119,7 @@ export function NodeHealthHistory({
               viewBox={`0 0 ${CHART.width} ${CHART.height}`}
               className="h-auto w-full overflow-visible"
             >
-              <title id="node-health-chart-title">
-                24 hour battery and link history
-              </title>
+              <title id="node-health-chart-title">24 hour battery and link history</title>
               <desc id="node-health-chart-desc">
                 Battery and link quality percentages, with shaded outage
                 intervals.

@@ -11,6 +11,11 @@ test("analytics renders the hotspot heatmap with honest scope captions", async (
   await expect(page.getByText("SIMULATED").first()).toBeVisible();
   await expect(page.getByText("Splunk-style aggregation")).toBeVisible();
   await expect(page.getByText(/30 d window/)).toBeVisible();
+  const exportLink = page.getByRole("link", {
+    name: /Export\s+SIMULATED\s+NDJSON/,
+  });
+  await expect(exportLink).toHaveAttribute("href", "/api/export/events.ndjson");
+  await expect(exportLink).toHaveAttribute("download", "coexist-events.ndjson");
   const heatmap = page.getByRole("region", { name: "Hotspot heatmap" });
   await expect(heatmap.getByText(/sample n=/)).toBeVisible();
   await expect(page.getByText("Peak cell")).toBeVisible();

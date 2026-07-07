@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { HonestyChip } from "@/components/honesty-chip";
 import { HotspotHeatmap } from "@/components/command/hotspot-heatmap";
 import {
   AnalyticsWindowSelector,
@@ -18,6 +19,40 @@ export const metadata: Metadata = {
 
 function firstValue(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
+}
+
+function DownloadIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M12 3v11" />
+      <path d="m7 10 5 5 5-5" />
+      <path d="M5 20h14" />
+    </svg>
+  );
+}
+
+function AnalyticsExportLink() {
+  return (
+    <a
+      href="/api/export/events.ndjson"
+      download="coexist-events.ndjson"
+      className="inline-flex min-h-11 items-center gap-2 rounded-md border border-line bg-raised px-3 text-sm font-medium text-ink transition-colors hover:bg-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+    >
+      <DownloadIcon className="size-4 shrink-0 text-muted" />
+      <span>Export</span>
+      <HonestyChip mode="simulated" />
+      <span className="text-muted">NDJSON</span>
+    </a>
+  );
 }
 
 export default async function AnalyticsPage({
@@ -72,7 +107,10 @@ export default async function AnalyticsPage({
             Time-of-day risk analysis for planning patrols and rail advisories.
           </p>
         </div>
-        <AnalyticsWindowSelector active={window.key} />
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <AnalyticsWindowSelector active={window.key} />
+          <AnalyticsExportLink />
+        </div>
       </header>
 
       <HotspotHeatmap snapshot={snapshot} />

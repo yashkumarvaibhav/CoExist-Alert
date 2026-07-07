@@ -158,7 +158,7 @@ export function HotspotHeatmap({
                 className="block h-auto w-full max-w-full overflow-hidden"
               >
                 <title id="hotspot-chart-title">
-                  {snapshot.window.label} node by hour hotspot heatmap
+                  {`${snapshot.window.label} node by hour hotspot heatmap`}
                 </title>
                 <desc id="hotspot-chart-desc">
                   Confirmed event counts by sensor node and IST hour, with

@@ -192,7 +192,7 @@ function TrendChart({
                     opacity={bar.value === 0 ? 0.16 : 0.78}
                   >
                     <title>
-                      {bar.point.label}: {formatTrendValue(bar.value, unit)}
+                      {`${bar.point.label}: ${formatTrendValue(bar.value, unit)}`}
                     </title>
                   </rect>
                 ))
@@ -217,8 +217,10 @@ function TrendChart({
                     fill="var(--info)"
                   >
                     <title>
-                      {point.point.label}:{" "}
-                      {formatTrendValue(point.point.value ?? 0, unit)}
+                      {`${point.point.label}: ${formatTrendValue(
+                        point.point.value ?? 0,
+                        unit,
+                      )}`}
                     </title>
                   </circle>
                 ))
