@@ -8,6 +8,7 @@ import { GET as exportEvents } from "@/app/api/export/events.ndjson/route";
 import { createDatabaseClient } from "@/db/client";
 import { resetRuntimeDatabase } from "@/db/runtime";
 import { seedDatabase } from "@/db/seed";
+import { analyticsWindow } from "@/lib/analytics";
 
 describe("GET /api/export/events.ndjson", () => {
   let tempDir: string;
@@ -34,7 +35,9 @@ describe("GET /api/export/events.ndjson", () => {
   });
 
   it("streams one newline-delimited JSON record per event with the honest export headers", async () => {
-    const response = exportEvents();
+    const response = exportEvents(
+      new Request("http://localhost/api/export/events.ndjson"),
+    );
 
     expect(response.headers.get("content-type")).toContain("application/x-ndjson");
     expect(response.headers.get("content-disposition")).toContain("coexist-events.ndjson");
@@ -70,5 +73,38 @@ describe("GET /api/export/events.ndjson", () => {
     );
     expect(suppressed).toBeDefined();
     expect(suppressed?.lead_time_seconds).toBeNull();
+  });
+
+  it("filters the export to the requested analytics window", async () => {
+    const fullResponse = exportEvents(
+      new Request("http://localhost/api/export/events.ndjson"),
+    );
+    const windowedResponse = exportEvents(
+      new Request("http://localhost/api/export/events.ndjson?window=7d"),
+    );
+
+    const fullRecords = (await fullResponse.text())
+      .split("\n")
+      .filter((line) => line.length > 0)
+      .map((line) => JSON.parse(line) as Record<string, unknown>);
+    const windowedRecords = (await windowedResponse.text())
+      .split("\n")
+      .filter((line) => line.length > 0)
+      .map((line) => JSON.parse(line) as Record<string, unknown>);
+
+    expect(windowedRecords.length).toBeGreaterThan(0);
+    expect(windowedRecords.length).toBeLessThan(fullRecords.length);
+
+    const cutoff = new Date(analyticsWindow("7d").fromIso).getTime();
+    expect(
+      fullRecords.some(
+        (record) => new Date(record.opened_at as string).getTime() < cutoff,
+      ),
+    ).toBe(true);
+    expect(
+      windowedRecords.every(
+        (record) => new Date(record.opened_at as string).getTime() >= cutoff,
+      ),
+    ).toBe(true);
   });
 });

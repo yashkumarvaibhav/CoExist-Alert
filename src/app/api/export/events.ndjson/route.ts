@@ -1,6 +1,7 @@
 import { getRuntimeRepositories } from "@/db/runtime";
 import type { Alert, EventResponse } from "@/domain/types";
 import { eventsToNdjson, toEventExportRecord } from "@/export/events-ndjson";
+import { analyticsWindow } from "@/lib/analytics";
 
 export const dynamic = "force-dynamic";
 
@@ -11,9 +12,25 @@ export const dynamic = "force-dynamic";
  * field log (see the honesty header); every field is derived from persisted
  * event, delivery and response rows.
  */
-export function GET(): Response {
+function exportWindow(request: Request): { fromIso: string; toIso: string } | null {
+  const windowKey = new URL(request.url).searchParams.get("window");
+  if (windowKey === null) return null;
+  const window = analyticsWindow(windowKey);
+  return { fromIso: window.fromIso, toIso: window.toIso };
+}
+
+export function GET(request: Request): Response {
   const repos = getRuntimeRepositories();
-  const events = repos.events.list();
+  const window = exportWindow(request);
+  const events =
+    window === null
+      ? repos.events.list()
+      : repos.events
+          .list()
+          .filter(
+            (event) =>
+              event.openedAt >= window.fromIso && event.openedAt < window.toIso,
+          );
 
   const alertsByEvent = new Map<string, Alert[]>();
   for (const alert of repos.alerts.listAll()) {

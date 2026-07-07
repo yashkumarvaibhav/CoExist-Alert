@@ -11,6 +11,7 @@ import {
   analyticsWindow,
   buildHotspotAnalytics,
   buildReliabilityAnalytics,
+  type AnalyticsWindowKey,
 } from "@/lib/analytics";
 
 export const metadata: Metadata = {
@@ -40,17 +41,16 @@ function DownloadIcon({ className }: { className?: string }) {
   );
 }
 
-function AnalyticsExportLink() {
+function AnalyticsExportLink({ windowKey }: { windowKey: AnalyticsWindowKey }) {
   return (
     <a
-      href="/api/export/events.ndjson"
+      href={`/api/export/events.ndjson?window=${windowKey}`}
       download="coexist-events.ndjson"
       className="inline-flex min-h-11 items-center gap-2 rounded-md border border-line bg-raised px-3 text-sm font-medium text-ink transition-colors hover:bg-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
     >
       <DownloadIcon className="size-4 shrink-0 text-muted" />
-      <span>Export</span>
+      <span>Export NDJSON</span>
       <HonestyChip mode="simulated" />
-      <span className="text-muted">NDJSON</span>
     </a>
   );
 }
@@ -109,7 +109,7 @@ export default async function AnalyticsPage({
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
           <AnalyticsWindowSelector active={window.key} />
-          <AnalyticsExportLink />
+          <AnalyticsExportLink windowKey={window.key} />
         </div>
       </header>
 

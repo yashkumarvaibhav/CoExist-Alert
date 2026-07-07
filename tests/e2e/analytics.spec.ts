@@ -12,9 +12,12 @@ test("analytics renders the hotspot heatmap with honest scope captions", async (
   await expect(page.getByText("Splunk-style aggregation")).toBeVisible();
   await expect(page.getByText(/30 d window/)).toBeVisible();
   const exportLink = page.getByRole("link", {
-    name: /Export\s+SIMULATED\s+NDJSON/,
+    name: /Export\s+NDJSON\s+SIMULATED/,
   });
-  await expect(exportLink).toHaveAttribute("href", "/api/export/events.ndjson");
+  await expect(exportLink).toHaveAttribute(
+    "href",
+    "/api/export/events.ndjson?window=30d",
+  );
   await expect(exportLink).toHaveAttribute("download", "coexist-events.ndjson");
   const heatmap = page.getByRole("region", { name: "Hotspot heatmap" });
   await expect(heatmap.getByText(/sample n=/)).toBeVisible();
@@ -74,6 +77,18 @@ test("analytics exposes the insufficient-sample state for a tiny window", async 
   await expect(leadTime.getByText(/sample n=[0-4]/)).toBeVisible();
   await expect(response.getByText("n < 5").first()).toBeVisible();
   await expect(response.getByText(/sample n=[0-4]/)).toBeVisible();
+});
+
+test("analytics export follows the selected window", async ({ page }) => {
+  await page.goto("/command/analytics?window=7d");
+
+  const exportLink = page.getByRole("link", {
+    name: /Export\s+NDJSON\s+SIMULATED/,
+  });
+  await expect(exportLink).toHaveAttribute(
+    "href",
+    "/api/export/events.ndjson?window=7d",
+  );
 });
 
 test("analytics route has no horizontal overflow", async ({ page }) => {
