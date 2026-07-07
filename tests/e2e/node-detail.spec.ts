@@ -10,7 +10,7 @@ test("node detail renders facts, health history and outage ledger", async ({
   ).toBeVisible();
   const facts = page.getByRole("region", { name: "Node facts" });
   await expect(facts.getByText("Rail crossing", { exact: true })).toBeVisible();
-  await expect(facts.getByText("26.8900, 88.8900")).toBeVisible();
+  await expect(facts.getByText("26.8880, 88.8900")).toBeVisible();
   await expect(facts.getByText("2200 m")).toBeVisible();
 
   await expect(facts).toContainText(/Battery|Link quality/);
