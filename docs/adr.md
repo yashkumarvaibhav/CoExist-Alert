@@ -16,7 +16,7 @@ The app also has to be honest about what is simulated. Field hardware, villager 
 
 The product is a single Next.js 16 App Router application with API routes, server-rendered pages, client dashboards, an in-process simulator, and a user-scoped systemd deployment. Escalation timers, heartbeat timeout checks, and server-sent events need a long-lived process, so a serverless deployment is not a good fit.
 
-This keeps the judge setup simple: `npm install`, `npm run setup`, and `npm run dev` start the full proof of concept.
+This keeps the judge setup simple: `docker compose up` needs nothing but Docker, or on Node 20+ `npm install`, `npm run setup`, and `npm run dev` start the full proof of concept.
 
 ### 2. Keep edge classification outside the platform
 

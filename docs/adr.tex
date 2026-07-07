@@ -16,7 +16,7 @@ The product must be judge-clonable, demoable in minutes, and clear about which C
 \section*{Accepted Decisions}
 
 \begin{decisionbox}{1. One persistent Next.js application}
-The system uses one Next.js 16 App Router application for pages, APIs, simulator, persistence access, server-sent events, and production runtime. Escalation timers and heartbeat-timeout checks need a long-lived process, so the deployment runs as a persistent Node service instead of a serverless function set. A reviewer can still run everything with `npm install`, `npm run setup`, and `npm run dev`.
+The system uses one Next.js 16 App Router application for pages, APIs, simulator, persistence access, server-sent events, and production runtime. Escalation timers and heartbeat-timeout checks need a long-lived process, so the deployment runs as a persistent Node service instead of a serverless function set. A reviewer can run everything with `docker compose up` (nothing but Docker required), or on Node 20+ with `npm install`, `npm run setup`, and `npm run dev`.
 \end{decisionbox}
 
 \begin{decisionbox}{2. Edge classification stays outside this platform}

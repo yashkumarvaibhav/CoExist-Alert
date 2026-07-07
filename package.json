@@ -2,7 +2,15 @@
   "name": "coexist-alert",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
+    "preinstall": "node scripts/check-node.mjs",
+    "checknode": "node scripts/check-node.mjs",
+    "predev": "node scripts/check-node.mjs",
+    "prestart": "node scripts/check-node.mjs",
+    "presetup": "node scripts/check-node.mjs",
     "dev": "next dev --port 3021",
     "build": "next build",
     "start": "next start --port 8021 --hostname 127.0.0.1",

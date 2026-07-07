@@ -1,0 +1,36 @@
+# Keep the build context small and reproducible. Anything regenerated inside
+# the image (deps, build output, the seeded DB) must NOT be copied from the host.
+node_modules
+.next
+out
+build
+
+# Local runtime data — the image seeds its own SQLite DB at build time.
+var
+
+# Test / tooling artifacts
+test-results
+playwright-report
+blob-report
+playwright/.auth
+coverage
+
+# Secrets and local env — never bake host credentials into the image.
+# (.env.example is kept so the container has the documented template.)
+.env
+.env.*
+!.env.example
+
+# VCS and TS build cache
+.git
+.gitignore
+*.tsbuildinfo
+next-env.d.ts
+
+# Submission docs / large PDFs aren't needed at runtime
+docs
+
+# The Docker files themselves
+Dockerfile
+.dockerignore
+docker-compose.yml

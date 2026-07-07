@@ -115,15 +115,33 @@ Cisco products are the solution architecture here, not a decoration — and we a
 
 ## Quickstart
 
-Requires Node.js 20+ (built and tested on Node 24). SQLite is bundled — no database server to install.
+### Easiest — Docker (nothing but Docker required)
+
+No Node.js, no toolchain, no version matching. The image pins Node 24 and its own system libraries, so it runs identically on any machine with Docker:
 
 ```bash
 git clone https://github.com/yashkumarvaibhav/CoExist-Alert.git
 cd CoExist-Alert
+docker compose up          # builds, migrates + seeds, then serves
+# open http://localhost:3021
+```
+
+The DB is migrated and seeded during the build, so every screen has live data the moment the container starts. First build takes a couple of minutes; after that it's instant.
+
+### Native — Node.js 20+ (built and tested on Node 24)
+
+SQLite is bundled — no database server to install. If you use [nvm](https://github.com/nvm-sh/nvm), `nvm use` reads the shipped `.nvmrc` and selects the right Node for you:
+
+```bash
+git clone https://github.com/yashkumarvaibhav/CoExist-Alert.git
+cd CoExist-Alert
+nvm use           # optional: selects Node 24 from .nvmrc
 npm install
 npm run setup     # migrate + seed the local SQLite database
 npm run dev       # http://localhost:3021
 ```
+
+Running an older Node? The install stops immediately with a one-line message telling you to use Node 20+ (or `docker compose up`) — no cryptic native-module crash three commands later.
 
 The seed loads the Dooars corridor demo: 3 sensor nodes, villager zones, responder tiers and a month of confirmed-event history, so every screen has live data on first load. Without Webex credentials the guard channel runs in labelled simulated mode — the full loop still works end to end.
 

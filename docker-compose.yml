@@ -1,0 +1,21 @@
+# One command for judges:  docker compose up
+# Then open http://localhost:3021 — the DB is already migrated and seeded.
+#
+# No host Node.js required; the container pins Node 24 and its own system
+# libraries, so it runs identically on any machine that has Docker.
+
+name: coexist-alert
+
+services:
+  app:
+    build: .
+    ports:
+      - "3021:3021"
+
+    # Webex + Duo are OPTIONAL. Without them the guard channel runs in a
+    # clearly-labelled simulated mode and the full loop still works end to end.
+    # To enable the live Webex channel, create a .env file (see .env.example)
+    # and uncomment the line below — Compose will load it automatically.
+    #
+    # env_file:
+    #   - .env
