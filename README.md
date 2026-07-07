@@ -85,6 +85,12 @@ The command dashboard in light and dark — one persistent process driving a liv
 - **Deterministic domain core** — health state machine, confirmation engine, cascade planner, escalation and metrics are pure, I/O-free TypeScript, written test-first. This logic is life-critical; it is provably correct or it is nothing.
 - **In-process field simulator** drives the system **through the public ingest API** — the pipeline you see demonstrated is the pipeline that actually runs.
 
+### Submission documentation
+
+- [Architecture Decision Record](docs/adr.md) — concise record of the major architecture decisions.
+- [Architecture diagrams](docs/architecture.md) — system components, detection-to-warning sequence, escalation workflow and deployment flow.
+- [Third-party notices](THIRD_PARTY_NOTICES.md) — direct open-source dependency attribution.
+
 ## Cisco technology mapping
 
 Cisco products are the solution architecture here, not a decoration — and we are explicit about what is real versus simulated in this POC:
