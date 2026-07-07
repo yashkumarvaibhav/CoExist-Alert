@@ -1,0 +1,26 @@
+sequenceDiagram
+  participant Sensor as Edge sensor node
+  participant Ingest as Ingest API
+  participant Confirm as Confirmation engine
+  participant Cascade as Cascade engine
+  participant Webex as Cisco Webex
+  participant Guard as Guard view
+  participant DB as SQLite audit log
+  participant Command as Command dashboard
+
+  Sensor->>Ingest: POST detection signal
+  Ingest->>DB: Store raw signal
+  Ingest->>Confirm: Evaluate confidence and corroboration
+  alt High-confidence or corroborated
+    Confirm->>DB: Mark event confirmed
+    Confirm->>Cascade: Plan targeted alerts
+    Cascade->>DB: Queue siren, villager, guard, control alerts
+    Cascade->>Webex: Send guard alert card when configured
+    Webex-->>Cascade: Delivery result
+    Cascade->>DB: Store delivery status
+    Cascade-->>Command: SSE event + delivery updates
+    Cascade-->>Guard: SSE incoming alert
+  else Weak single signal
+    Confirm->>DB: Keep event unconfirmed, then expire if no corroboration
+    Confirm-->>Command: Logged quietly, no public alert
+  end

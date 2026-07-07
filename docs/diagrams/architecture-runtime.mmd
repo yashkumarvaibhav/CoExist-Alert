@@ -1,0 +1,26 @@
+flowchart TB
+  Repo["Public GitHub repository"]
+  CI["GitHub Actions<br/>lint + typecheck + tests + build"]
+  Build["Production build<br/>npm run build"]
+  Service["coexist-alert.service<br/>Next start on 127.0.0.1:8021"]
+  Public["https://coexist.yashkumarvaibhav.me"]
+  Version["/api/version<br/>short SHA + build time"]
+  Health["/api/health<br/>DB + simulator + Webex status"]
+  Env[".env on server<br/>Webex, auth secret, optional Duo"]
+  DB[("SQLite var/coexist.sqlite")]
+
+  Repo --> CI
+  Repo --> Build
+  Build --> Service
+  Env --> Service
+  Service --> DB
+  Service --> Public
+  Public --> Version
+  Public --> Health
+
+  classDef core fill:#EAF7F6,stroke:#3FADA8,color:#333333;
+  classDef runtime fill:#FFFFFF,stroke:#277A75,color:#333333;
+  classDef endpoint fill:#F5F6F6,stroke:#D9E1E1,color:#333333;
+  class Repo,CI,Build core;
+  class Service,Env,DB runtime;
+  class Public,Version,Health endpoint;

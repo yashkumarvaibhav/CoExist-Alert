@@ -1,0 +1,21 @@
+stateDiagram-v2
+  state "Tier 1 paged" as Tier1Paged
+  state "Tier 2 paged" as Tier2Paged
+  state "Tier 3 paged" as Tier3Paged
+  state "En route" as EnRoute
+  state "On site" as OnSite
+
+  [*] --> Unconfirmed: first weak signal
+  Unconfirmed --> Confirmed: high confidence or second source in window
+  Unconfirmed --> Expired: window closes, no alert sent
+  Confirmed --> Tier1Paged: dispatch tier 1
+  Tier1Paged --> Responding: tier 1 acknowledges
+  Tier1Paged --> Tier2Paged: timeout
+  Tier2Paged --> Responding: senior acknowledges or takes over
+  Tier2Paged --> Tier3Paged: timeout
+  Tier3Paged --> Responding: duty officer ack
+  Responding --> EnRoute: responder en route
+  EnRoute --> OnSite: responder on site
+  OnSite --> Resolved: incident resolved
+  Resolved --> [*]
+  Expired --> [*]

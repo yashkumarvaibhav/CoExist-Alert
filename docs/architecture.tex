@@ -6,185 +6,50 @@
 \docheader{Architecture Diagrams}{CoExist Alert}
 
 \begin{summarybox}[Architecture Read]
-These diagrams show the four views reviewers need most: system components, detection-to-warning sequence, escalation and ownership workflow, and runtime deployment. The same architecture is implemented in the app and summarized in the Markdown companion document.
+These diagrams show the four views reviewers need most: system components, detection-to-warning sequence, escalation and ownership workflow, and runtime deployment. The PDF embeds Mermaid-rendered vector diagrams generated from the companion sources under \texttt{docs/diagrams/}.
 \end{summarybox}
 
 \begin{decisionbox}{Reading note}
-The diagram pages are intentionally landscape so the PDF remains as readable as the GitHub-rendered Markdown diagrams. Field sensors and demo signals are simulated in this proof of concept; alerting, audit logging, exports, live updates, and responder ownership are implemented in the app.
+Field sensors are simulated in this proof of concept and are labeled that way in the UI and diagrams. Demo controls are a user-facing surface: they can trigger the ingest API for rehearsal, but they are not a field sensor node.
 \end{decisionbox}
 
-\tikzset{
-  box/.append style={font=\small\sffamily, minimum height=0.82cm},
-  brandbox/.append style={font=\small\sffamily, minimum height=0.82cm},
-  stagebox/.append style={font=\small\sffamily, minimum height=0.82cm},
-  dangerbox/.append style={font=\small\sffamily, minimum height=0.82cm},
-  groupbox/.style={draw=BrandColor!70!black, rounded corners=6pt, fill=BrandColor!4, inner sep=11pt},
-  viewbox/.style={draw=LineGray, rounded corners=6pt, fill=gray!4, inner sep=11pt},
-  flowlabel/.style={font=\scriptsize\sffamily, fill=white, inner sep=2pt}
-}
-
 \clearpage
-\begin{landscape}
 \section{System Components}
 
 \begin{center}
-\resizebox{0.96\linewidth}{!}{%
-\begin{tikzpicture}[node distance=0.55cm and 1.0cm]
-  \node[brandbox, minimum width=3.4cm] (n1) at (0,3.0) {Village Boundary East\\camera + motion};
-  \node[brandbox, minimum width=3.4cm] (n2) at (0,1.8) {Rail Crossing KM-47\\camera + thermal};
-  \node[brandbox, minimum width=3.4cm] (n3) at (0,0.6) {Waterhole 7\\camera + acoustic};
-  \node[brandbox, minimum width=3.4cm] (demo) at (0,-0.6) {Demo controls\\operator-triggered};
-  \begin{scope}[on background layer]
-    \node[groupbox, fit=(n1)(n2)(n3)(demo), label={[font=\bfseries\sffamily\small\color{AccentColor}]above:Field edge - simulated in this POC}] (field) {};
-  \end{scope}
-
-  \node[stagebox, minimum width=3.2cm] (ingest) at (4.7,1.25) {Ingest API\\heartbeat + detection};
-  \node[stagebox, minimum width=3.6cm] (health) at (8.7,3.05) {Node health engine\\healthy / degraded / offline};
-  \node[stagebox, minimum width=3.9cm] (confirm) at (8.7,1.05) {Confirmation engine\\confidence or corroboration};
-  \node[stagebox, minimum width=3.8cm] (cascade) at (12.9,2.05) {Alert cascade engine\\geofence + tiers + delivery};
-  \node[stagebox, minimum width=3.5cm] (response) at (17.0,0.55) {Responder workflow\\ack to resolved};
-  \node[stagebox, minimum width=3.5cm] (stream) at (17.0,3.35) {SSE stream\\live console updates};
-  \node[stagebox, minimum width=3.5cm] (analytics) at (12.9,-1.05) {Analytics + export\\hotspots + NDJSON};
-  \node[brandbox, minimum width=3.5cm] (db) at (8.7,-1.05) {SQLite via Drizzle\\audit state};
-  \begin{scope}[on background layer]
-    \node[groupbox, fit=(ingest)(health)(confirm)(cascade)(response)(stream)(analytics)(db), label={[font=\bfseries\sffamily\small\color{AccentColor}]above left:CoExist Alert server}] (server) {};
-  \end{scope}
-
-  \node[brandbox, minimum width=3.4cm] (webex) at (12.9,4.75) {Cisco Webex\\live when configured};
-  \node[box, minimum width=3.2cm] (command) at (21.4,3.1) {Command dashboard};
-  \node[box, minimum width=3.2cm] (guard) at (21.4,1.85) {Guard mobile view};
-  \node[box, minimum width=3.2cm] (channels) at (21.4,0.6) {Villager + rail\\channel view};
-  \begin{scope}[on background layer]
-    \node[viewbox, fit=(command)(guard)(channels), label={[font=\bfseries\sffamily\small\color{AccentColor}]above:User-facing surfaces}] (views) {};
-  \end{scope}
-
-  \draw[arrow] (n1.east) -- (ingest.west);
-  \draw[arrow] (n2.east) -- (ingest.west);
-  \draw[arrow] (n3.east) -- (ingest.west);
-  \draw[arrow] (demo.east) -- (ingest.west);
-  \draw[arrow] (ingest) -- (health);
-  \draw[arrow] (ingest) -- (confirm);
-  \draw[arrow] (health) -- (cascade);
-  \draw[arrow] (confirm) -- (cascade);
-  \draw[arrow] (cascade) -- (response);
-  \draw[arrow] (cascade) -- (webex);
-  \draw[mutedarrow] (health) -- (db);
-  \draw[mutedarrow] (confirm) -- (db);
-  \draw[mutedarrow] (cascade) -- (db);
-  \draw[mutedarrow] (response) -- (db);
-  \draw[arrow] (db) -- (analytics);
-  \draw[arrow] (db) -- (stream);
-  \draw[arrow] (stream) -- (command);
-  \draw[arrow] (stream) -- (guard);
-  \draw[arrow] (stream) -- (channels);
-\end{tikzpicture}}
+\makebox[\textwidth][c]{\includegraphics[width=1.12\textwidth,height=0.82\textheight,keepaspectratio]{diagrams/architecture-system.pdf}}
 \end{center}
-
-\begin{decisionbox}{What this view proves}
-The field layer is simulated, but every signal enters through the same ingest API that production field devices would call. The server owns confirmation, health, cascade, response, live updates, analytics, and export.
-\end{decisionbox}
-\end{landscape}
 
 \clearpage
 \begin{landscape}
 \section{Detection To Warning Sequence}
 
 \begin{center}
-\resizebox{0.96\linewidth}{!}{%
-\begin{tikzpicture}[x=1.95cm,y=0.82cm]
-  \foreach \x/\name in {0/Sensor,1.5/Ingest API,3/Confirm,4.5/Cascade,6/Webex,7.5/Guard,9/SQLite,10.5/Command} {
-    \node[box, minimum width=1.6cm] at (\x,0) {\name};
-    \draw[gray!45] (\x,-0.45) -- (\x,-8.9);
-  }
-  \draw[arrow] (0,-1.0) -- node[above,flowlabel] {POST detection signal} (1.5,-1.0);
-  \draw[arrow] (1.5,-1.8) -- node[above,flowlabel] {store raw signal} (9,-1.8);
-  \draw[arrow] (1.5,-2.6) -- node[above,flowlabel] {evaluate confidence + corroboration} (3,-2.6);
-  \node[brandbox, minimum width=3.7cm] at (3,-3.55) {High confidence\\or cross-source match};
-  \draw[arrow] (3,-4.45) -- node[above,flowlabel] {mark event confirmed} (9,-4.45);
-  \draw[arrow] (3,-5.25) -- node[above,flowlabel] {plan targeted alerts} (4.5,-5.25);
-  \draw[arrow] (4.5,-6.05) -- node[above,flowlabel] {queue alert + send card} (6,-6.05);
-  \draw[arrow] (6,-6.85) -- node[above,flowlabel] {delivery result} (4.5,-6.85);
-  \draw[arrow] (4.5,-7.65) -- node[above,flowlabel] {incoming alert} (7.5,-7.65);
-  \draw[arrow] (4.5,-8.45) -- node[above,flowlabel] {SSE event + delivery updates} (10.5,-8.45);
-\end{tikzpicture}}
+\makebox[\linewidth][c]{\includegraphics[width=1.12\linewidth,height=0.82\textheight,keepaspectratio]{diagrams/architecture-sequence.pdf}}
 \end{center}
-
-\begin{decisionbox}{False-positive path}
-A weak single signal remains unconfirmed, is logged quietly, and expires without channel dispatch if no second source corroborates it inside the confirmation window.
-\end{decisionbox}
 \end{landscape}
 
 \clearpage
-\begin{landscape}
 \section{Escalation And Ownership Workflow}
 
 \begin{center}
-\resizebox{0.96\linewidth}{!}{%
-\begin{tikzpicture}
-  \node[box, minimum width=2.3cm] (start) at (0,2.2) {Weak signal};
-  \node[stagebox, minimum width=2.7cm] (unconfirmed) at (3.5,2.2) {Unconfirmed};
-  \node[stagebox, minimum width=2.7cm] (confirmed) at (7.3,2.2) {Confirmed};
-  \node[stagebox, minimum width=2.7cm] (tier1) at (11.1,2.2) {Tier 1 paged};
-  \node[stagebox, minimum width=2.7cm] (tier2) at (11.1,0.75) {Tier 2 paged};
-  \node[stagebox, minimum width=2.7cm] (tier3) at (11.1,-0.7) {Tier 3 paged};
-  \node[brandbox, minimum width=2.9cm] (responding) at (15.1,0.75) {Responding\\owner locked};
-  \node[brandbox, minimum width=2.5cm] (enroute) at (18.7,0.75) {En route};
-  \node[brandbox, minimum width=2.5cm] (onsite) at (22.0,0.75) {On site};
-  \node[brandbox, minimum width=2.5cm] (resolved) at (25.3,0.75) {Resolved};
-  \node[dangerbox, minimum width=2.7cm] (expired) at (3.5,0.35) {Expired\\no alert};
-
-  \draw[arrow] (start) -- (unconfirmed);
-  \draw[arrow] (unconfirmed) -- (confirmed);
-  \draw[mutedarrow] (unconfirmed) -- node[left,flowlabel] {no match} (expired);
-  \draw[arrow] (confirmed) -- (tier1);
-  \draw[mutedarrow] (tier1) -- node[right,flowlabel] {timeout} (tier2);
-  \draw[mutedarrow] (tier2) -- node[right,flowlabel] {timeout} (tier3);
-  \draw[arrow] (tier1) -- node[above,flowlabel] {ack} (responding);
-  \draw[arrow] (tier2) -- node[above,flowlabel] {ack / take over} (responding);
-  \draw[arrow] (tier3) -| node[pos=0.25,below,flowlabel] {ack} (responding);
-  \draw[arrow] (responding) -- (enroute);
-  \draw[arrow] (enroute) -- (onsite);
-  \draw[arrow] (onsite) -- (resolved);
-\end{tikzpicture}}
+\includegraphics[width=0.96\textwidth,height=0.76\textheight,keepaspectratio]{diagrams/architecture-escalation.pdf}
 \end{center}
 
 \begin{decisionbox}{Ownership rule}
-Unconfirmed signals promote only after high confidence or second-source corroboration; otherwise they expire without public alerting. The first acknowledging responder owns the incident. A paged senior can take over, but other responders cannot progress or resolve someone else's active incident.
+The first acknowledging responder owns the incident. A paged senior can take over, but other responders cannot progress or resolve someone else's active incident.
 \end{decisionbox}
-\end{landscape}
 
 \clearpage
-\begin{landscape}
 \section{Runtime And Deployment Flow}
 
 \begin{center}
-\resizebox{0.84\linewidth}{!}{%
-\begin{tikzpicture}[node distance=1.05cm and 1.35cm]
-  \node[brandbox, minimum width=3.2cm] (repo) {Public GitHub\\repository};
-  \node[stagebox, right=of repo, minimum width=3.5cm] (ci) {GitHub Actions\\typecheck, lint, tests, build};
-  \node[stagebox, right=of ci, minimum width=3.4cm] (build) {Production build\\npm run build};
-  \node[stagebox, right=of build, minimum width=3.8cm] (service) {coexist-alert.service\\127.0.0.1:8021};
-  \node[brandbox, below=of service, minimum width=4.2cm] (public) {Public URL\\coexist.yashkumarvaibhav.me};
-  \node[box, below left=of public, minimum width=3.3cm] (version) {\texttt{/api/version}\\SHA + build time};
-  \node[box, below right=of public, minimum width=3.3cm] (health) {\texttt{/api/health}\\DB, simulator, Webex};
-  \node[box, below=of build, minimum width=3.4cm] (env) {\texttt{.env}\\Webex, auth, optional Duo};
-  \node[box, below=of ci, minimum width=3.3cm] (db) {SQLite\\runtime DB};
-
-  \draw[arrow] (repo) -- (ci);
-  \draw[arrow] (repo) to[bend left=12] (build);
-  \draw[arrow] (build) -- (service);
-  \draw[arrow] (env) -- (service);
-  \draw[arrow] (service) -- (db);
-  \draw[arrow] (service) -- (public);
-  \draw[arrow] (public) -- (version);
-  \draw[arrow] (public) -- (health);
-\end{tikzpicture}}
+\includegraphics[width=0.96\textwidth,height=0.67\textheight,keepaspectratio]{diagrams/architecture-runtime.pdf}
 \end{center}
 
 \begin{decisionbox}{Deployment proof}
 The public deployment is verified by matching the latest Git commit with \texttt{/api/version}, plus \texttt{/api/health} for database, simulator, and Webex readiness.
 \end{decisionbox}
-\end{landscape}
 
 \clearpage
 \section{Cisco Mapping Summary}

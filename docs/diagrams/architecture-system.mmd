@@ -1,0 +1,58 @@
+flowchart TB
+  subgraph Field["Field edge - simulated in this POC"]
+    N1["Village Boundary East<br/>camera + motion"]
+    N2["Rail Crossing KM-47<br/>camera + thermal"]
+    N3["Waterhole 7<br/>camera + acoustic"]
+  end
+
+  subgraph App["CoExist Alert server<br/>Next.js + TypeScript"]
+    Ingest["Ingest API<br/>heartbeat + detection"]
+    Health["Node health engine<br/>healthy / degraded / offline"]
+    Confirm["Confirmation engine<br/>confidence or cross-source corroboration"]
+    Cascade["Alert cascade engine<br/>geofence + tiers + delivery tracking"]
+    Response["Responder workflow<br/>ack / en route / on site / resolved"]
+    Stream["SSE stream<br/>live console updates"]
+    Analytics["Analytics + NDJSON export<br/>hotspots + reliability KPIs"]
+    DB[("SQLite via Drizzle")]
+  end
+
+  subgraph Views["User-facing surfaces"]
+    Command["Command dashboard"]
+    Guard["Guard mobile view"]
+    Channels["Villager + rail channel view"]
+    Demo["Demo controls"]
+  end
+
+  Webex["Cisco Webex<br/>live when env-configured"]
+
+  N1 --> Ingest
+  N2 --> Ingest
+  N3 --> Ingest
+  Demo --> Ingest
+  Ingest --> Health
+  Ingest --> Confirm
+  Health --> Cascade
+  Confirm --> Cascade
+  Cascade --> Webex
+  Cascade --> Response
+  Health --> DB
+  Confirm --> DB
+  Cascade --> DB
+  Response --> DB
+  DB --> Analytics
+  DB --> Stream
+  Stream --> Command
+  Stream --> Guard
+  Stream --> Channels
+
+  classDef field fill:#EAF7F6,stroke:#3FADA8,color:#333333;
+  classDef server fill:#FFFFFF,stroke:#277A75,color:#333333;
+  classDef view fill:#F5F6F6,stroke:#D9E1E1,color:#333333;
+  classDef cisco fill:#EAF7F6,stroke:#3FADA8,color:#333333;
+  class N1,N2,N3 field;
+  class Ingest,Health,Confirm,Cascade,Response,Stream,Analytics,DB server;
+  class Command,Guard,Channels,Demo view;
+  class Webex cisco;
+  style Field fill:#F2FBFA,stroke:#3FADA8,color:#277A75
+  style App fill:#FFFFFF,stroke:#277A75,color:#277A75
+  style Views fill:#F5F6F6,stroke:#D9E1E1,color:#277A75
