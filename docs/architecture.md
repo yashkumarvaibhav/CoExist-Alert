@@ -108,7 +108,7 @@ stateDiagram-v2
 
 ```mermaid
 flowchart TB
-  Repo["Private GitHub repository"]
+  Repo["Public GitHub repository"]
   CI["GitHub Actions\nlint + typecheck + tests + build"]
   Build["Production build\nnpm run build"]
   Service["coexist-alert.service\nNext start on 127.0.0.1:8021"]

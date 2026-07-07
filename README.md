@@ -87,8 +87,8 @@ The command dashboard in light and dark — one persistent process driving a liv
 
 ### Submission documentation
 
-- [Architecture Decision Record](docs/adr.md) — concise record of the major architecture decisions.
-- [Architecture diagrams](docs/architecture.md) — system components, detection-to-warning sequence, escalation workflow and deployment flow.
+- [Architecture Decision Record](docs/adr.md) ([PDF](docs/adr.pdf)) — concise record of the major architecture decisions.
+- [Architecture diagrams](docs/architecture.md) ([PDF](docs/architecture.pdf)) — system components, detection-to-warning sequence, escalation workflow and deployment flow.
 - [Third-party notices](THIRD_PARTY_NOTICES.md) — direct open-source dependency attribution.
 
 ## Cisco technology mapping
