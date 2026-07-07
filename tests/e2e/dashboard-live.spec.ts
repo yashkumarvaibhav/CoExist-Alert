@@ -27,7 +27,7 @@ test("sensor health board shows a live row per node", async ({ page }) => {
   await page.goto("/command");
   const board = page.getByRole("region", { name: "Sensor health" });
   await expect(
-    board.getByText("Reliability model: ThousandEyes agent tests"),
+    board.getByText("Reliability model: ThousandEyes synthetic tests"),
   ).toBeVisible();
   for (const name of [
     "Village Boundary East",

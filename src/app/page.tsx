@@ -64,7 +64,7 @@ const architecture = [
     stage: "Observe",
     product: "ThousandEyes-style tests · Splunk-style analytics",
     proof:
-      "Missed heartbeats open outages and blind-spot alerts with agent-test semantics; thirty days of events feed the hotspot and reliability analytics.",
+      "Missed heartbeats open outages and blind-spot alerts with synthetic-test semantics; thirty days of events feed the hotspot and reliability analytics.",
     label: "SIMULATED",
   },
   {

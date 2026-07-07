@@ -104,7 +104,7 @@ export function NodeHealthHistory({
             24 h battery + link health
           </h2>
           <p className="mt-0.5 text-xs text-faint">
-            Reliability model: ThousandEyes agent tests
+            Reliability model: ThousandEyes synthetic tests
           </p>
         </div>
         <HonestyChip mode="simulated" />

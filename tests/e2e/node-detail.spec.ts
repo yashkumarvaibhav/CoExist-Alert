@@ -16,7 +16,7 @@ test("node detail renders facts, health history and outage ledger", async ({
   await expect(facts).toContainText(/Battery|Link quality/);
   await expect(
     page.getByRole("region", { name: "24 h battery + link health" }),
-  ).toContainText("Reliability model: ThousandEyes agent tests");
+  ).toContainText("Reliability model: ThousandEyes synthetic tests");
   await expect(page.getByText("SIMULATED").first()).toBeVisible();
   await expect(
     page.getByRole("img", { name: /24 hour battery and link history/i }),

@@ -198,7 +198,7 @@ export function HealthBoard({
           Sensor health
         </h2>
         <span className="text-xs text-faint">
-          Reliability model: ThousandEyes agent tests
+          Reliability model: ThousandEyes synthetic tests
         </span>
       </div>
       <ul className="divide-y divide-line">

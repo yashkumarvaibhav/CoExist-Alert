@@ -150,6 +150,10 @@ Admin-only demo controls can require a real Cisco Duo hosted MFA step-up. Create
 
 Every simulated element in the UI carries a visible `SIMULATED` chip; only real Webex sends show `LIVE`. Demo data is a fictionalized composite inspired by the Dooars elephant corridor (North Bengal), clearly labelled. We never fake a live-hardware claim.
 
+## License
+
+MIT. See [LICENSE](LICENSE).
+
 ## Team
 
 **GitBoosters** — Yash Kumar Vaibhav (IIIT Delhi) · Varnika Pulipati (IIITDM Jabalpur) · Adeesh Jain (BITS Pilani Goa)
