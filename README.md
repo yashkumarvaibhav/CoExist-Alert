@@ -126,7 +126,10 @@ docker compose up          # builds, migrates + seeds, then serves
 # open http://localhost:3021
 ```
 
-The DB is migrated and seeded during the build, so every screen has live data the moment the container starts. First build takes a couple of minutes; after that it's instant.
+The Compose file rebuilds from the current checkout on `up`, so a fresh pull serves
+the same sign-in flow as the hosted demo instead of reusing an older local image.
+The DB is migrated and seeded during the build, so every screen has live data the
+moment the container starts. Builds take a couple of minutes.
 
 ### Native — Node.js 20+ (built and tested on Node 24)
 

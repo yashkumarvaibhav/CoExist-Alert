@@ -9,6 +9,7 @@ name: coexist-alert
 services:
   app:
     build: .
+    pull_policy: build
     ports:
       - "3021:3021"
 
