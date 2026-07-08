@@ -2,13 +2,16 @@
 
 import { useState } from "react";
 
-/** Read/respond demo accounts shown for one-click sign-in. Admin is not listed:
- * the field-driving controls stay behind a credential only the operator holds. */
+/** Demo accounts shown for one-click sign-in — every role, admin included.
+ * Deliberate: reviewers explore the whole POC without gatekeeping, and the
+ * role switch demonstrates the RBAC boundaries live. Production swaps these
+ * for directory-backed accounts behind Duo MFA. */
 const DEMO_ACCOUNTS = [
   { username: "commander", label: "Command Center", hint: "Full command dashboard" },
   { username: "guard", label: "Beat Officer R. Sharma", hint: "Guard response console" },
   { username: "range", label: "Range RRT Alpha", hint: "Escalation-tier console" },
   { username: "control", label: "NFR Section Control", hint: "Rail channels view" },
+  { username: "admin", label: "Operations Admin", hint: "Demo panel + field controls" },
 ] as const;
 const DEMO_PASSWORD = "coexist-demo";
 
@@ -124,7 +127,8 @@ export function LoginForm({ next }: { next: string | null }) {
         </ul>
         <p className="mt-2 text-xs text-faint">
           Password for all demo accounts: <span className="font-mono">{DEMO_PASSWORD}</span>.
-          The operations (admin) console is not listed.
+          Every role is open by design — explore freely; in production these
+          become directory accounts with Duo MFA step-up.
         </p>
       </div>
     </div>

@@ -96,6 +96,20 @@ test("one-click demo sign-in lands inside the requested console", async ({ page 
   ).toContainText("Live", { timeout: 15_000 });
 });
 
+test("admin one-click sign-in reaches the field-driving demo panel", async ({ page }) => {
+  await page.context().clearCookies();
+  await page.goto("/?signin=1&next=%2Fdemo");
+
+  await page.getByRole("dialog", { name: "Sign in" })
+    .getByRole("button", { name: /Operations Admin/i })
+    .click();
+
+  await expect(page).toHaveURL(/\/demo$/);
+  await expect(
+    page.getByText(/DEMO CONTROLS — drives the simulated field/i),
+  ).toBeVisible();
+});
+
 test("landing page honors reduced-motion users", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");

@@ -62,10 +62,13 @@ export interface SeedSummary {
 }
 
 /**
- * Demo console accounts. The read/respond roles share a shown password so
- * judges can sign in in one click from the landing modal; the admin password is
- * env-overridable (`COEXIST_ADMIN_PASSWORD`) and NOT displayed, keeping the
- * field-driving /demo controls behind a credential only the operator holds.
+ * Demo console accounts. ALL five roles — including the operations admin that
+ * drives the /demo field controls — share the shown password and sign in with
+ * one click from the landing modal. That is deliberate: reviewers must be able
+ * to explore every surface of the POC without gatekeeping, and it demonstrates
+ * the RBAC boundaries live. The production path replaces these with
+ * directory-backed accounts behind Duo MFA; `COEXIST_ADMIN_PASSWORD` still
+ * hardens the admin account for any deployment that wants a closed field.
  */
 const DEMO_PASSWORD = "coexist-demo";
 interface SeedUser {
@@ -87,7 +90,7 @@ const seedUsers: SeedUser[] = [
     role: "admin",
     responderId: null,
     displayName: "Operations Admin",
-    password: process.env.COEXIST_ADMIN_PASSWORD ?? "coexist-admin",
+    password: process.env.COEXIST_ADMIN_PASSWORD || DEMO_PASSWORD,
   },
 ];
 

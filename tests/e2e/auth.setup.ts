@@ -12,7 +12,7 @@ export const ADMIN_STORAGE = path.join(__dirname, "..", "..", "playwright", ".au
  */
 setup("authenticate as admin", async ({ request }) => {
   const response = await request.post("/api/auth/login", {
-    data: { username: "admin", password: process.env.COEXIST_ADMIN_PASSWORD ?? "coexist-admin" },
+    data: { username: "admin", password: process.env.COEXIST_ADMIN_PASSWORD || "coexist-demo" },
   });
   expect(response.ok()).toBeTruthy();
   await request.storageState({ path: ADMIN_STORAGE });

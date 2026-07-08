@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { verifyPassword } from "@/auth/password";
 import { createInMemoryDatabase } from "@/db/client";
 import { createRepositories } from "@/db/repositories";
 import { readSeedSummary, seedDatabase } from "@/db/seed";
@@ -79,6 +80,23 @@ describe("demo seed", () => {
       for (const node of repos.nodes.list()) {
         expect(now - new Date(node.lastHeartbeatAt!).getTime()).toBeLessThan(5 * 60 * 1000);
       }
+    } finally {
+      database.close();
+    }
+  });
+
+  it("seeds every role as a one-click demo account, admin included", async () => {
+    const database = createInMemoryDatabase();
+
+    try {
+      seedDatabase(database.db);
+      const repos = createRepositories(database.db);
+
+      const admin = repos.users.findByUsername("admin");
+      expect(admin?.role).toBe("admin");
+      // Deliberate open-review choice: without a COEXIST_ADMIN_PASSWORD
+      // override, the admin signs in with the shared one-click demo password.
+      expect(await verifyPassword("coexist-demo", admin!.passwordHash)).toBe(true);
     } finally {
       database.close();
     }
