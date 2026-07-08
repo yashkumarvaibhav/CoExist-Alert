@@ -325,14 +325,14 @@ export default async function Home({
               <p className="mt-5 text-base leading-relaxed text-white/75 sm:text-lg">
                 So the network watches itself. Every node reports a heartbeat;
                 when one goes quiet, the corridor it watched is declared blind,
-                a patrol is dispatched to cover it, and every blind minute is
-                counted on the record. An outage gets the same urgency as an
-                elephant at the fence.
+                an ops alert calls for a patrol to cover it, and every blind
+                minute is counted on the record. An outage gets the same
+                urgency as an elephant at the fence.
               </p>
               <p className="mt-6 flex flex-wrap items-center gap-3 font-mono text-xs text-[#7ce4de]/85 sm:text-sm">
                 <span>
-                  n3 · Waterhole 7 — heartbeat lost → corridor blind → patrol
-                  dispatched
+                  n3 · Waterhole 7 — heartbeat lost → corridor blind → ops
+                  alerted: dispatch patrol
                 </span>
                 <HeroChip>SIMULATED</HeroChip>
               </p>

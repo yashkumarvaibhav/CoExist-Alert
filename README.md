@@ -100,8 +100,8 @@ Cisco products are the solution architecture here, not a decoration — and we a
 | **Sense** | Meraki MV smart cameras (MV Sense), MT sensors, Cisco Spaces | On-camera detection at hotspots publishes object-detection payloads | Simulator emits payloads **shaped like MV Sense outputs** (`classification`, `confidence`, snapshot ref); ingest validates them as untrusted edge input | `SIMULATED` chip on every field signal |
 | **Observe** | ThousandEyes, Splunk | Node-to-server tests per site; alert on loss/latency; Splunk drives analytics | Heartbeat pipeline models ThousandEyes tests: missed beats ⇒ degraded/offline with the same alarm semantics; analytics engine is Splunk-style aggregation; the event log streams out as NDJSON at `GET /api/export/events.ndjson` for a Splunk HTTP Event Collector / forwarder | Health board labelled with its reliability model; export carries an `X-Coexist-Export: simulated-field-log` header |
 | **Engage** | Webex APIs | Guard alert rooms, response coordination, control-room notifications | **REAL** — a bot posts an alert card (snapshot, facts, map link) to a Webex space when configured; delivery status comes from the API response; falls back to a simulated channel otherwise | `LIVE` / `SIMULATED` chip switches automatically |
-| **Connect** | Meraki MG / Catalyst + mesh backhaul | Remote backbone from forest edge to command | Topology narrative and diagram; node `link_quality` models backhaul health | Diagram labelled conceptual |
-| **Secure** | Duo / Secure Access / Umbrella | MFA on the command console; zero-trust responder access; DNS-layer protection for field gateways | **Real auth + RBAC** — signed-in accounts with scrypt-hashed passwords and HMAC session cookies; the request proxy gates every console and mutating API by role (a guard reaches only their console; field-driving controls are admin-only). **Cisco Duo OIDC MFA** is implemented with signed HS512 JWTs and gates the admin operations console when `DUO_CLIENT_ID`, `DUO_CLIENT_SECRET`, and `DUO_API_HOST` are configured. For the public demo, Duo is left dormant so reviewers can enter without third-party MFA friction; one-click demo accounts keep the product fully explorable | `LIVE` auth; `DORMANT` Duo unless env-configured |
+| **Connect** | Meraki MG / Catalyst + mesh backhaul | Remote backbone from forest edge to command | Node `link_quality` models backhaul health; the backhaul topology is documented as the production path | `SIMULATED` link-health model |
+| **Secure** | Duo / Secure Access / Umbrella | MFA on the command console; zero-trust responder access; DNS-layer protection for field gateways | **Real auth + RBAC** — signed-in accounts with scrypt-hashed passwords and HMAC session cookies; the request proxy gates every console and mutating API by role (a guard reaches only their console; field-driving controls are admin-only). **Cisco Duo OIDC MFA** is implemented with signed HS512 JWTs and gates the admin operations console when `DUO_CLIENT_ID`, `DUO_CLIENT_SECRET`, and `DUO_API_HOST` are configured. For the public demo, Duo is left dormant so reviewers can enter without third-party MFA friction; one-click demo accounts keep every console explorable | `LIVE` auth; `DORMANT` Duo unless env-configured |
 
 **Why the network story matters:** detection is worthless if the warning silently fails. Monitoring the warning system itself — and alerting when a corridor goes blind — is what makes "a warning never silently fails" an honest promise. The network is the product.
 
@@ -145,6 +145,10 @@ The seed loads the Dooars corridor demo: 3 sensor nodes, villager zones, respond
 
 Production build: `npm run build && npm run start` (port 8021).
 Tests: `npm run test` (unit) · `npm run test:e2e` (Playwright).
+
+### Signing in
+
+The seed creates one-click demo accounts for every console — `commander`, `guard`, `range` and `control`, password `coexist-demo` — shown directly in the sign-in dialog. The field-driving demo panel (`/demo`) is admin-only: on a local run, sign in as `admin` / `coexist-admin` (set `COEXIST_ADMIN_PASSWORD` before `npm run setup` to choose your own). On the hosted demo the admin password is operator-held, so public visitors can explore every console but not drive the field.
 
 ### Live Webex channel
 
