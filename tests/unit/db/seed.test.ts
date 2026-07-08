@@ -53,4 +53,34 @@ describe("demo seed", () => {
       database.close();
     }
   });
+
+  it("anchors the demo history to the current date so analytics stay populated", () => {
+    const database = createInMemoryDatabase();
+
+    try {
+      seedDatabase(database.db);
+      const repos = createRepositories(database.db);
+      const now = Date.now();
+      const DAY_MS = 24 * 60 * 60 * 1000;
+
+      const events = repos.events.list();
+      const openedTimes = events.map((event) => new Date(event.openedAt).getTime());
+      // The whole history is in the past — the seed must never mint future events.
+      expect(Math.max(...openedTimes)).toBeLessThan(now);
+      // The newest event is fresh (yesterday's dawn/dusk) and the oldest keeps the
+      // full month inside the default 30d analytics window, whenever the seed runs.
+      expect(now - Math.max(...openedTimes)).toBeLessThan(2 * DAY_MS);
+      expect(now - Math.min(...openedTimes)).toBeLessThan(32 * DAY_MS);
+
+      // The e2e suite deep-links this event; its id must stay stable.
+      expect(events.map((event) => event.id)).toContain("hist-01-n2");
+
+      // Nodes report a just-now heartbeat so the health board starts green.
+      for (const node of repos.nodes.list()) {
+        expect(now - new Date(node.lastHeartbeatAt!).getTime()).toBeLessThan(5 * 60 * 1000);
+      }
+    } finally {
+      database.close();
+    }
+  });
 });

@@ -37,9 +37,16 @@ import {
 } from "./schema";
 
 const IST_OFFSET_MS = 330 * 60 * 1000;
-const ANCHOR_YEAR = 2026;
-const ANCHOR_MONTH_INDEX = 6;
-const ANCHOR_DAY = 2;
+
+// The demo history is anchored to the date the seed RUNS (in IST), not a fixed
+// calendar date: dayOffset 1 is yesterday, dayOffset 30 is a month ago. This
+// keeps the "last 30 days" analytics window fully populated for anyone cloning
+// the repo at any time, while event ids (hist-01-n2, …) stay deterministic.
+const SEED_RUN_AT = new Date();
+const nowIst = new Date(SEED_RUN_AT.getTime() + IST_OFFSET_MS);
+const ANCHOR_YEAR = nowIst.getUTCFullYear();
+const ANCHOR_MONTH_INDEX = nowIst.getUTCMonth();
+const ANCHOR_DAY = nowIst.getUTCDate();
 
 export interface SeedSummary {
   nodes: number;
@@ -95,8 +102,8 @@ const seedNodes: SensorNode[] = [
     status: "healthy",
     batteryPct: 82,
     linkQualityPct: 91,
-    lastHeartbeatAt: "2026-07-02T09:29:42.000Z",
-    createdAt: "2026-06-02T00:00:00.000Z",
+    lastHeartbeatAt: addSeconds(SEED_RUN_AT.toISOString(), -18),
+    createdAt: isoFromIst(30, 0, 0),
   },
   {
     id: "n2",
@@ -108,8 +115,8 @@ const seedNodes: SensorNode[] = [
     status: "healthy",
     batteryPct: 86,
     linkQualityPct: 94,
-    lastHeartbeatAt: "2026-07-02T09:29:44.000Z",
-    createdAt: "2026-06-02T00:00:00.000Z",
+    lastHeartbeatAt: addSeconds(SEED_RUN_AT.toISOString(), -16),
+    createdAt: isoFromIst(30, 0, 0),
   },
   {
     id: "n3",
@@ -121,8 +128,8 @@ const seedNodes: SensorNode[] = [
     status: "healthy",
     batteryPct: 78,
     linkQualityPct: 88,
-    lastHeartbeatAt: "2026-07-02T09:29:41.000Z",
-    createdAt: "2026-06-02T00:00:00.000Z",
+    lastHeartbeatAt: addSeconds(SEED_RUN_AT.toISOString(), -19),
+    createdAt: isoFromIst(30, 0, 0),
   },
 ];
 
@@ -374,7 +381,7 @@ function buildEventSeeds(): EventSeed[] {
 function buildHeartbeats(): Heartbeat[] {
   return seedNodes.flatMap((node) =>
     Array.from({ length: 24 }, (_, index): Heartbeat => {
-      const at = addSeconds("2026-07-02T09:30:00.000Z", -(23 - index) * 60 * 60);
+      const at = addSeconds(SEED_RUN_AT.toISOString(), -(23 - index) * 60 * 60);
       return {
         id: `hb-${node.id}-${index.toString().padStart(2, "0")}`,
         nodeId: node.id,
@@ -535,7 +542,7 @@ export function seedDatabase(db: AppDatabase): SeedSummary {
       role: user.role,
       responderId: user.responderId,
       displayName: user.displayName,
-      createdAt: "2026-06-01T00:00:00.000Z",
+      createdAt: isoFromIst(31, 0, 0),
     };
     repos.users.upsert(record);
   }
