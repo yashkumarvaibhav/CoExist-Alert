@@ -32,7 +32,7 @@ This is the trust layer of the product. The system must be able to prove why an 
 
 ### 4. Use SQLite with Drizzle for zero-setup persistence
 
-SQLite keeps the clone path lightweight while still giving the demo durable state, migrations, seed data, and auditable tables for nodes, signals, events, alerts, responses, outages, responders, and users. Drizzle keeps schema and repository access typed and leaves a straightforward migration path to Postgres if the project moves beyond the proof of concept.
+SQLite keeps the clone path lightweight while still giving the demo durable state, migrations, seed data, and auditable tables for nodes, signals, events, alerts, responses, outages, responders, and users. Drizzle keeps schema and repository access typed and leaves a straightforward migration path to Postgres if the project moves beyond the proof of concept. The seeded month of demo history is anchored to the install date, so hotspot and reliability analytics are fully populated whenever the repository is cloned, not only in the week it was built.
 
 ### 5. Use REST for actions and SSE for live dashboards
 
@@ -58,8 +58,14 @@ The field simulator drives the same public ingest APIs that a real field integra
 
 This makes the demo credible: the visible workflow is backed by the same records and state transitions that power the audit timeline and analytics.
 
+### 8. Real authentication with deliberately open demo accounts
+
+Every console sits behind real sign-in: scrypt-hashed passwords, signed session cookies, and role-gating middleware in front of every page and mutating API. For review, all five roles — including the operations admin that drives the demo panel — are one-click demo accounts with a shared, displayed password. That is a deliberate choice, not an oversight: reviewers should explore the whole proof of concept without gatekeeping, and switching roles demonstrates the RBAC boundaries live. The production path swaps these for directory-backed accounts with Cisco Duo MFA step-up, which is already implemented and activates when configured.
+
 ## Consequences
 
 The architecture favors reliability, clarity, and reviewability over breadth. It does not depend on live field hardware, a model sidecar, or paid cloud setup. It does include a real backend, durable data model, auth/RBAC, Webex integration, responder loop, health monitoring, export path, and repeatable demo seed.
 
 The main tradeoff is that sensing hardware and most channel endpoints are simulated. The product handles that openly with visible labels and by showing the production Cisco product mapped to each simulated layer.
+
+Scaling beyond the proof of concept is a swap of endpoints, not a redesign: Postgres behind the same repositories, real sensor fleets behind the same ingest contract, additional corridors behind the same geofenced targeting, and directory-backed identity behind the same session middleware.

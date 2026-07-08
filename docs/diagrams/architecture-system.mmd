@@ -16,7 +16,7 @@ flowchart TB
     DB[("SQLite via Drizzle")]
   end
 
-  subgraph Views["User-facing surfaces"]
+  subgraph Views["User-facing surfaces - behind sign-in + RBAC"]
     Command["Command dashboard"]
     Guard["Guard mobile view"]
     Channels["Villager + rail channel view"]

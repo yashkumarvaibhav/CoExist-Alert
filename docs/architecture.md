@@ -23,7 +23,7 @@ flowchart LR
     DB[("SQLite via Drizzle")]
   end
 
-  subgraph Views["User-facing surfaces"]
+  subgraph Views["User-facing surfaces - behind sign-in + RBAC"]
     Command["Command dashboard"]
     Guard["Guard mobile view"]
     Channels["Villager + rail channel view"]
@@ -108,9 +108,11 @@ stateDiagram-v2
 
 ```mermaid
 flowchart TB
-  Repo["Public GitHub repository"]
+  Repo["GitHub repository (private)"]
   CI["GitHub Actions\nlint + typecheck + tests + build"]
   Build["Production build\nnpm run build"]
+  Docker["docker compose up\nmigrate + seed + production build"]
+  Local["Local judge run\nhttp://localhost:3021"]
   Service["coexist-alert.service\nNext start on 127.0.0.1:8021"]
   Public["https://coexist.yashkumarvaibhav.me"]
   Version["/api/version\nshort SHA + build time"]
@@ -120,6 +122,8 @@ flowchart TB
 
   Repo --> CI
   Repo --> Build
+  Repo --> Docker
+  Docker --> Local
   Build --> Service
   Env --> Service
   Service --> DB

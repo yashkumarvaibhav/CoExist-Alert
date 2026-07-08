@@ -1,7 +1,9 @@
 flowchart TB
-  Repo["Public GitHub repository"]
+  Repo["GitHub repository (private)"]
   CI["GitHub Actions<br/>lint + typecheck + tests + build"]
   Build["Production build<br/>npm run build"]
+  Docker["docker compose up<br/>migrate + seed + production build"]
+  Local["Local judge run<br/>http://localhost:3021"]
   Service["coexist-alert.service<br/>Next start on 127.0.0.1:8021"]
   Public["https://coexist.yashkumarvaibhav.me"]
   Version["/api/version<br/>short SHA + build time"]
@@ -11,6 +13,8 @@ flowchart TB
 
   Repo --> CI
   Repo --> Build
+  Repo --> Docker
+  Docker --> Local
   Build --> Service
   Env --> Service
   Service --> DB
@@ -22,5 +26,5 @@ flowchart TB
   classDef runtime fill:#FFFFFF,stroke:#277A75,color:#333333;
   classDef endpoint fill:#F5F6F6,stroke:#D9E1E1,color:#333333;
   class Repo,CI,Build core;
-  class Service,Env,DB runtime;
-  class Public,Version,Health endpoint;
+  class Service,Env,DB,Docker runtime;
+  class Public,Version,Health,Local endpoint;
