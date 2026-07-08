@@ -22,11 +22,13 @@ RUN npm ci
 # Copy the rest of the source (see .dockerignore for what's excluded).
 COPY . .
 
-# Migrate + seed the bundled SQLite DB at build time so the image ships
-# demo-ready: every screen has live data the moment the container starts.
+# Migrate + seed the bundled SQLite DB, then compile a production build so the
+# image ships demo-ready and serves the same clean production UI as the hosted
+# site — no dev-only overlay, no on-demand compilation, fast first paint.
 RUN npm run setup
+RUN npm run build
 
 EXPOSE 3021
 
-# Bind to 0.0.0.0 so the mapped port is reachable from the host.
-CMD ["npx", "next", "dev", "--port", "3021", "--hostname", "0.0.0.0"]
+# Serve the production build, bound to 0.0.0.0 so the mapped port reaches the host.
+CMD ["npx", "next", "start", "--port", "3021", "--hostname", "0.0.0.0"]

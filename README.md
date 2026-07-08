@@ -101,7 +101,7 @@ Cisco products are the solution architecture here, not a decoration — and we a
 | **Observe** | ThousandEyes, Splunk | Node-to-server tests per site; alert on loss/latency; Splunk drives analytics | Heartbeat pipeline models ThousandEyes tests: missed beats ⇒ degraded/offline with the same alarm semantics; analytics engine is Splunk-style aggregation; the event log streams out as NDJSON at `GET /api/export/events.ndjson` for a Splunk HTTP Event Collector / forwarder | Health board labelled with its reliability model; export carries an `X-Coexist-Export: simulated-field-log` header |
 | **Engage** | Webex APIs | Guard alert rooms, response coordination, control-room notifications | **REAL** — a bot posts an alert card (snapshot, facts, map link) to a Webex space when configured; delivery status comes from the API response; falls back to a simulated channel otherwise | `LIVE` / `SIMULATED` chip switches automatically |
 | **Connect** | Meraki MG / Catalyst + mesh backhaul | Remote backbone from forest edge to command | Topology narrative and diagram; node `link_quality` models backhaul health | Diagram labelled conceptual |
-| **Secure** | Duo / Secure Access / Umbrella | MFA on the command console; zero-trust responder access; DNS-layer protection for field gateways | **Real auth + RBAC** — signed-in accounts with scrypt-hashed passwords and HMAC session cookies; the request proxy gates every console and mutating API by role (a guard reaches only their console; field-driving controls are admin-only). **Cisco Duo OIDC MFA** is implemented with signed HS512 JWTs and gates the admin operations console when `DUO_CLIENT_ID`, `DUO_CLIENT_SECRET`, and `DUO_API_HOST` are configured. Public demo decision: leave Duo dormant so reviewers can enter without third-party MFA friction, while one-click demo accounts keep the product explorable | `LIVE` auth; `DORMANT` Duo unless env-configured |
+| **Secure** | Duo / Secure Access / Umbrella | MFA on the command console; zero-trust responder access; DNS-layer protection for field gateways | **Real auth + RBAC** — signed-in accounts with scrypt-hashed passwords and HMAC session cookies; the request proxy gates every console and mutating API by role (a guard reaches only their console; field-driving controls are admin-only). **Cisco Duo OIDC MFA** is implemented with signed HS512 JWTs and gates the admin operations console when `DUO_CLIENT_ID`, `DUO_CLIENT_SECRET`, and `DUO_API_HOST` are configured. For the public demo, Duo is left dormant so reviewers can enter without third-party MFA friction; one-click demo accounts keep the product fully explorable | `LIVE` auth; `DORMANT` Duo unless env-configured |
 
 **Why the network story matters:** detection is worthless if the warning silently fails. Monitoring the warning system itself — and alerting when a corridor goes blind — is what makes "a warning never silently fails" an honest promise. The network is the product.
 
@@ -140,8 +140,6 @@ npm install
 npm run setup     # migrate + seed the local SQLite database
 npm run dev       # http://localhost:3021
 ```
-
-Running an older Node? The install stops immediately with a one-line message telling you to use Node 20+ (or `docker compose up`) — no cryptic native-module crash three commands later.
 
 The seed loads the Dooars corridor demo: 3 sensor nodes, villager zones, responder tiers and a month of confirmed-event history, so every screen has live data on first load. Without Webex credentials the guard channel runs in labelled simulated mode — the full loop still works end to end.
 
