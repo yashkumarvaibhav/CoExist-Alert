@@ -89,6 +89,7 @@ The command dashboard in light and dark — one persistent process driving a liv
 
 - [Architecture Decision Record](docs/adr.md) ([PDF](docs/adr.pdf)) — concise record of the major architecture decisions.
 - [Architecture diagrams](docs/architecture.md) ([PDF](docs/architecture.pdf)) — system components, detection-to-warning sequence, escalation workflow and deployment flow.
+- [Scaling guideline](docs/scaling.md) — how one simulated corridor becomes many real ones: corridors as configuration, endpoint and storage swaps, and what deliberately never changes.
 - [Third-party notices](THIRD_PARTY_NOTICES.md) — direct open-source dependency attribution.
 
 ## Cisco technology mapping
