@@ -186,7 +186,7 @@ export default async function GuardViewPage({
   const settings = repos.settings.get();
 
   return (
-    <StandaloneShell wide sound>
+    <StandaloneShell wide sound install>
       <header>
         <h1 className="text-3xl">{chrome.title}</h1>
         <p className="mt-1 text-sm text-muted">{chrome.subtitle}</p>

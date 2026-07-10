@@ -5,6 +5,7 @@ import { BuildStamp } from "@/components/build-stamp";
 import { RoleSwitcher } from "@/components/command/role-switcher";
 import { SoundToggle } from "@/components/command/sound-toggle";
 import { ConnectionBanner } from "@/components/connection-banner";
+import { InstallAppButton } from "@/components/install-app-button";
 import { LiveStreamProvider } from "@/components/live-stream-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { APP_NAME } from "@/lib/app-info";
@@ -14,18 +15,21 @@ import { APP_NAME } from "@/lib/app-info";
  * /demo): wordmark, role switcher and theme toggle — no command sidebar.
  * `wide` relaxes the single-column width for multi-panel demo surfaces.
  * `sound` shows the warning-alarm toggle; the surface's own console drives the
- * hooter from its live event state (Guard/Channels). Children share one
- * EventSource via the wrapping LiveStreamProvider, which also feeds the
- * reconnect banner.
+ * hooter from its live event state (Guard/Channels). `install` offers the
+ * home-screen install prompt (guard view — the console a responder carries).
+ * Children share one EventSource via the wrapping LiveStreamProvider, which
+ * also feeds the reconnect banner.
  */
 export function StandaloneShell({
   children,
   wide = false,
   sound = false,
+  install = false,
 }: {
   children: React.ReactNode;
   wide?: boolean;
   sound?: boolean;
+  install?: boolean;
 }) {
   return (
     <LiveStreamProvider>
@@ -58,6 +62,7 @@ export function StandaloneShell({
             </span>
           </Link>
           <div className="ml-auto flex shrink-0 items-center gap-2">
+            {install && <InstallAppButton />}
             {sound && <SoundToggle />}
             <RoleSwitcher />
             <ThemeToggle />

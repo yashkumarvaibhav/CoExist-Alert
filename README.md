@@ -154,6 +154,10 @@ Tests: `npm run test` (unit) · `npm run test:e2e` (Playwright).
 
 The seed creates five one-click demo accounts, shown directly in the sign-in dialog: `commander`, `guard`, `range`, `control` and `admin`, all with password `coexist-demo`. **Every role — including the admin account that drives the `/demo` field controls — is deliberately open.** Reviewers should be able to explore the whole POC without gatekeeping, and switching roles demonstrates the RBAC boundaries live: a guard is walled off from the command console by the same middleware that will enforce real access in production. On the production path these become directory-backed accounts with Duo MFA step-up (see below); setting `COEXIST_ADMIN_PASSWORD` before `npm run setup` hardens the admin account for any deployment that wants a closed field.
 
+### Install on a phone
+
+The guard view installs as an app. On Chromium browsers the guard header offers **Install app** (Safari: Share → Add to Home Screen), pinning the response console to a responder's home screen behind the shield mark. The service worker behind it is deliberately minimal, because a live console must never lie: pages and data always come from the network, `/api/*` is never intercepted or cached, and losing the link shows a labelled offline screen instead of a stale console — the same honesty the health board applies to a silent sensor node. Live alerts need a working link; that the network is a monitored lifeline is the product's whole point.
+
 ### Live Webex channel
 
 The guard Webex channel is live when credentials are present and simulated when they are absent.

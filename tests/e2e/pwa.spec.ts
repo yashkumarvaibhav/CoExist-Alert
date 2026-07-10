@@ -59,6 +59,43 @@ test.describe("offline fallback page", () => {
   });
 });
 
+test("guard view offers install once the browser allows it", async ({ page }) => {
+  await page.goto("/guard");
+  await expect(page.getByRole("heading", { name: /view|console/ })).toBeVisible();
+
+  // No beforeinstallprompt yet (and never on Safari/Firefox): no button.
+  const installButton = page.getByRole("button", { name: "Install app" });
+  await expect(installButton).toHaveCount(0);
+
+  // Synthesize the Chromium install signal; re-dispatch until hydration has
+  // attached the listener.
+  await expect
+    .poll(async () => {
+      await page.evaluate(() => {
+        const event = new Event("beforeinstallprompt", { cancelable: true });
+        Object.assign(event, {
+          prompt: () => {
+            (window as { __installPrompted?: boolean }).__installPrompted = true;
+            return Promise.resolve();
+          },
+          userChoice: Promise.resolve({ outcome: "dismissed" }),
+        });
+        window.dispatchEvent(event);
+      });
+      return installButton.isVisible();
+    })
+    .toBe(true);
+
+  await installButton.click();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => (window as { __installPrompted?: boolean }).__installPrompted === true,
+      ),
+    )
+    .toBe(true);
+});
+
 test("offline navigation falls back to the offline page (production only)", async ({
   page,
   context,
