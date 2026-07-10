@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "@fontsource-variable/newsreader/opsz.css";
 import "./globals.css";
 
+import { PwaRegister } from "@/components/pwa-register";
 import { APP_NAME } from "@/lib/app-info";
 
 const SITE_URL =
@@ -9,6 +10,15 @@ const SITE_URL =
 const TITLE = `${APP_NAME} — Edge early-warning for human-wildlife conflict`;
 const DESCRIPTION =
   "Detect a large animal approaching the forest edge, confirm it, and warn villagers, forest guards and rail control within seconds — with the network itself monitored so a warning never silently fails.";
+
+// Browser/installed-window chrome follows the editorial page surface in both
+// themes (the manifest can only carry one value; this meta pair wins).
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#10191b" },
+  ],
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -50,7 +60,10 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInit }} />
       </head>
-      <body className="flex min-h-full flex-col">{children}</body>
+      <body className="flex min-h-full flex-col">
+        <PwaRegister />
+        {children}
+      </body>
     </html>
   );
 }

@@ -87,6 +87,15 @@ const ROUTES: AuditRoute[] = [
       ).toBeVisible();
     },
   },
+  {
+    name: "offline fallback",
+    path: "/offline",
+    ready: async (page) => {
+      await expect(
+        page.getByRole("heading", { name: "You are offline" }),
+      ).toBeVisible();
+    },
+  },
 ];
 
 function formatViolations(
